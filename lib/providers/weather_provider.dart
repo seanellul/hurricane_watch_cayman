@@ -1,0 +1,137 @@
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:hurricane_watch/models/weather.dart';
+import 'package:hurricane_watch/models/hurricane.dart';
+import 'package:hurricane_watch/services/weather_service.dart';
+
+class WeatherProvider with ChangeNotifier {
+  final WeatherService _weatherService = WeatherService();
+
+  WeatherData? _currentWeather;
+  List<Hurricane> _activeHurricanes = [];
+  bool _isLoading = false;
+  String? _error;
+
+  WeatherData? get currentWeather => _currentWeather;
+  List<Hurricane> get activeHurricanes => _activeHurricanes;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+
+  Future<void> loadWeatherData() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final weather = await _weatherService.getCurrentWeather();
+      _currentWeather = weather;
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to load weather data: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadHurricaneData() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final hurricanes = await _weatherService.getActiveHurricanes();
+      _activeHurricanes = hurricanes;
+      notifyListeners();
+    } catch (e) {
+      _setError('Failed to load hurricane data: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> loadHurricaneDetails(String stormId) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final hurricane = await _weatherService.getHurricaneDetails(stormId);
+
+      // Update the hurricane in the list
+      final index = _activeHurricanes.indexWhere((h) => h.id == stormId);
+      if (index != -1) {
+        _activeHurricanes[index] = hurricane;
+        notifyListeners();
+      }
+    } catch (e) {
+      _setError('Failed to load hurricane details: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Hurricane? getHurricaneById(String id) {
+    try {
+      return _activeHurricanes.firstWhere((hurricane) => hurricane.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  List<Hurricane> getHurricanesNearCayman() {
+    // Filter hurricanes that might affect Cayman Islands
+    // This is a simplified check - in a real app, you'd do more sophisticated calculations
+    return _activeHurricanes.where((hurricane) {
+      // Check if hurricane is within 500 miles of Cayman
+      const caymanLat = 19.3133;
+      const caymanLng = -81.2546;
+
+      final distance = _calculateDistance(
+        caymanLat,
+        caymanLng,
+        hurricane.latitude,
+        hurricane.longitude,
+      );
+
+      return distance < 500; // 500 miles
+    }).toList();
+  }
+
+  double _calculateDistance(
+      double lat1, double lng1, double lat2, double lng2) {
+    const double earthRadius = 3959; // miles
+
+    final dLat = _degreesToRadians(lat2 - lat1);
+    final dLng = _degreesToRadians(lng2 - lng1);
+
+    final lat1Rad = _degreesToRadians(lat1);
+    final lat2Rad = _degreesToRadians(lat2);
+
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        sin(lat1Rad) * sin(lat2Rad) * sin(dLng / 2) * sin(dLng / 2);
+    final c = 2 * asin(sqrt(a));
+
+    return earthRadius * c;
+  }
+
+  double _degreesToRadians(double degrees) {
+    return degrees * (3.14159265359 / 180);
+  }
+
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setError(String error) {
+    _error = error;
+    notifyListeners();
+  }
+
+  void _clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  Future<void> refresh() async {
+    await loadWeatherData();
+    await loadHurricaneData();
+  }
+}
