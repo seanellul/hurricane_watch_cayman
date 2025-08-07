@@ -25,15 +25,7 @@ class _NewsScreenState extends State<NewsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Latest News'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              context.read<NewsProvider>().refresh();
-            },
-          ),
-        ],
+        toolbarHeight: 8,
       ),
       body: Consumer<NewsProvider>(
         builder: (context, newsProvider, child) {

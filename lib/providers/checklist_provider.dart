@@ -43,12 +43,36 @@ class ChecklistProvider with ChangeNotifier {
 
     try {
       _householdProfile = profile;
-      _checklistItems = _checklistService.generateChecklist(profile);
+      _checklistItems = await _checklistService.generateChecklist(profile);
       notifyListeners();
     } catch (e) {
       _setError('Failed to generate checklist: $e');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<void> addCustomChecklistItem(ChecklistItem item) async {
+    try {
+      await _checklistService.addCustomItem(item);
+      // Regenerate checklist to include the new item
+      if (_householdProfile != null) {
+        await generateChecklist(_householdProfile!);
+      }
+    } catch (e) {
+      _setError('Failed to add custom item: $e');
+    }
+  }
+
+  Future<void> removeCustomChecklistItem(String itemId) async {
+    try {
+      await _checklistService.removeCustomItem(itemId);
+      // Regenerate checklist to remove the item
+      if (_householdProfile != null) {
+        await generateChecklist(_householdProfile!);
+      }
+    } catch (e) {
+      _setError('Failed to remove custom item: $e');
     }
   }
 

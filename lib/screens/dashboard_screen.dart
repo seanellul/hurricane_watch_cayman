@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hurricane_watch/providers/checklist_provider.dart';
-import 'package:hurricane_watch/models/checklist.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:hurricane_watch/screens/preparedness_checklist_screen.dart';
+import 'package:hurricane_watch/screens/emergency_contacts_screen.dart';
+import 'package:hurricane_watch/screens/quick_links_screen.dart';
+import 'package:hurricane_watch/screens/shelter_information_screen.dart';
+import 'package:hurricane_watch/screens/app_information_screen.dart';
+import 'package:hurricane_watch/screens/hurricane_info_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -24,15 +28,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              context.read<ChecklistProvider>().refresh();
-            },
-          ),
-        ],
+        toolbarHeight: 8,
       ),
       body: Consumer<ChecklistProvider>(
         builder: (context, checklistProvider, child) {
@@ -46,16 +42,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _PreparednessOverview(provider: checklistProvider),
+                  const SizedBox(height: 24),
+                  _DashboardQuickActions(),
                   const SizedBox(height: 16),
-                  _EmergencyContactsCard(
-                      contacts: checklistProvider.emergencyContacts),
-                  const SizedBox(height: 16),
-                  _HurricaneInfoCard(),
-                  const SizedBox(height: 16),
-                  if (checklistProvider.householdProfile != null)
-                    _ChecklistCard(provider: checklistProvider)
-                  else
-                    _SetupProfileCard(),
                 ],
               ),
             ),
@@ -144,307 +133,159 @@ class _PreparednessOverview extends StatelessWidget {
   }
 }
 
-class _EmergencyContactsCard extends StatelessWidget {
-  final List<EmergencyContact> contacts;
-
-  const _EmergencyContactsCard({required this.contacts});
-
+class _DashboardQuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Emergency Contacts',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            ...contacts.map((contact) => _ContactItem(contact: contact)),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
         ),
-      ),
-    );
-  }
-}
-
-class _ContactItem extends StatelessWidget {
-  final EmergencyContact contact;
-
-  const _ContactItem({required this.contact});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        child: Icon(
-          _getContactIcon(contact.type),
-          color: Colors.white,
-        ),
-      ),
-      title: Text(contact.name),
-      subtitle: Text(contact.description ?? ''),
-      trailing: IconButton(
-        icon: const Icon(Icons.phone),
-        onPressed: () => _makePhoneCall(contact.phone),
-      ),
-    );
-  }
-
-  IconData _getContactIcon(String type) {
-    switch (type.toLowerCase()) {
-      case 'police':
-        return Icons.local_police;
-      case 'fire':
-        return Icons.local_fire_department;
-      case 'hospital':
-        return Icons.local_hospital;
-      case 'relief':
-        return Icons.volunteer_activism;
-      case 'government':
-        return Icons.account_balance;
-      default:
-        return Icons.phone;
-    }
-  }
-
-  Future<void> _makePhoneCall(String phone) async {
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-}
-
-class _HurricaneInfoCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(height: 16),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.1,
           children: [
-            Text(
-              'Hurricane Preparedness',
-              style: Theme.of(context).textTheme.titleLarge,
+            _QuickActionButton(
+              icon: Icons.checklist,
+              title: 'Preparedness\nChecklist',
+              color: Colors.blue,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PreparednessChecklistScreen(),
+                ),
+              ),
             ),
-            const SizedBox(height: 16),
-            _InfoItem(
-              icon: Icons.water_drop,
-              title: 'Water',
-              description:
-                  'Store 1 gallon per person per day for at least 3 days',
+            _QuickActionButton(
+              icon: Icons.contact_phone,
+              title: 'Emergency\nContacts',
+              color: Colors.red,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EmergencyContactsScreen(),
+                ),
+              ),
             ),
-            _InfoItem(
-              icon: Icons.restaurant,
-              title: 'Food',
-              description: 'Non-perishable food for 3 days per person',
+            _QuickActionButton(
+              icon: Icons.link,
+              title: 'Quick\nLinks',
+              color: Colors.green,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const QuickLinksScreen(),
+                ),
+              ),
             ),
-            _InfoItem(
-              icon: Icons.flashlight_on,
-              title: 'Lighting',
-              description: 'Flashlights, batteries, and portable chargers',
+            _QuickActionButton(
+              icon: Icons.home,
+              title: 'Shelter\nInformation',
+              color: Colors.orange,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ShelterInformationScreen(),
+                ),
+              ),
             ),
-            _InfoItem(
-              icon: Icons.medical_services,
-              title: 'Medical',
-              description: 'First aid kit and 7-day supply of medications',
+            _QuickActionButton(
+              icon: Icons.info,
+              title: 'App\nInformation',
+              color: Colors.purple,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AppInformationScreen(),
+                ),
+              ),
             ),
-            _InfoItem(
-              icon: Icons.radio,
-              title: 'Communication',
-              description: 'Battery-powered radio for emergency updates',
-            ),
-            _InfoItem(
-              icon: Icons.attach_money,
-              title: 'Cash',
-              description: 'Small bills and coins for emergencies',
+            _QuickActionButton(
+              icon: Icons.cyclone,
+              title: 'Hurricane\nInfo',
+              color: Colors.teal,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HurricaneInfoScreen(),
+                ),
+              ),
             ),
           ],
         ),
-      ),
+      ],
     );
   }
 }
 
-class _InfoItem extends StatelessWidget {
+class _QuickActionButton extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String description;
+  final Color color;
+  final VoidCallback onTap;
 
-  const _InfoItem({
+  const _QuickActionButton({
     required this.icon,
     required this.title,
-    required this.description,
+    required this.color,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: Theme.of(context).colorScheme.primary,
-            size: 24,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(
-                  description,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
+    return Material(
+      elevation: 4,
+      borderRadius: BorderRadius.circular(16),
+      color: Colors.white,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: color.withOpacity(0.2),
+              width: 1,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SetupProfileCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Setup Your Household',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Create a personalized hurricane preparedness checklist based on your household size and needs.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const HouseholdSetupScreen(),
-                  ),
-                );
-              },
-              child: const Text('Setup Household Profile'),
-            ),
-          ],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 32,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[800],
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _ChecklistCard extends StatelessWidget {
-  final ChecklistProvider provider;
-
-  const _ChecklistCard({required this.provider});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Your Checklist',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ChecklistDetailScreen(),
-                      ),
-                    );
-                  },
-                  child: const Text('View All'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...provider.checklistItems.take(3).map((item) => _ChecklistItemTile(
-                  item: item,
-                  onChanged: (value) {
-                    if (value != null) {
-                      provider.updateChecklistItem(item.id, value);
-                    }
-                  },
-                )),
-            if (provider.checklistItems.length > 3)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'And ${provider.checklistItems.length - 3} more items...',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChecklistItemTile extends StatelessWidget {
-  final ChecklistItem item;
-  final ValueChanged<bool?> onChanged;
-
-  const _ChecklistItemTile({
-    required this.item,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return CheckboxListTile(
-      value: item.isCompleted,
-      onChanged: onChanged,
-      title: Text(item.name),
-      subtitle: Text('${item.quantity} ${item.unit}'),
-      secondary: item.isEssential
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.red,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Essential',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            )
-          : null,
     );
   }
 }
@@ -473,3 +314,5 @@ class ChecklistDetailScreen extends StatelessWidget {
     );
   }
 }
+
+// All screens now implemented

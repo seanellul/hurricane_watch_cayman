@@ -35,344 +35,459 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85, // 85% of screen height
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 15,
-            spreadRadius: 3,
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          children: [
-            // Full-background map
-            FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                initialCenter: const LatLng(19.3133, -81.2546),
-                initialZoom: 4.5,
-                maxZoom: 12,
-                minZoom: 2,
-                onTap: (tapPosition, point) {
-                  // Toggle controls visibility on tap
-                  setState(() {
-                    showControls = !showControls;
-                  });
-                },
+    return SizedBox(
+      height: MediaQuery.of(context).size.height, // Full screen height
+      width: MediaQuery.of(context).size.width, // Full screen width
+      child: Stack(
+        children: [
+          // Full-background map
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: const LatLng(19.3133, -81.2546),
+              initialZoom: 4.5,
+              maxZoom: 12,
+              minZoom: 2,
+              onTap: (tapPosition, point) {
+                // Toggle controls visibility on tap
+                setState(() {
+                  showControls = !showControls;
+                });
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.hurricane_watch',
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.hurricane_watch',
-                ),
-                // Dynamic wind field visualization
-                PolygonLayer(
-                  polygons: _generateTimeBasedWindFields(
-                      widget.hurricanes, _selectedTimeIndex),
-                ),
-                // Realistic wind arrows (counterclockwise)
-                MarkerLayer(
-                  markers: _generateRealisticWindArrows(
-                      widget.hurricanes, _selectedTimeIndex),
-                ),
-                // Hurricane eye markers with improved design (clickable)
-                MarkerLayer(
-                  markers: widget.hurricanes.map((hurricane) {
-                    return Marker(
-                      point: LatLng(hurricane.latitude, hurricane.longitude),
-                      width: 80,
-                      height: 80,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            selectedStorm =
-                                selectedStorm == hurricane ? null : hurricane;
-                          });
+              // Dynamic wind field visualization
+              PolygonLayer(
+                polygons: _generateTimeBasedWindFields(
+                    widget.hurricanes, _selectedTimeIndex),
+              ),
+              // Realistic wind arrows (counterclockwise)
+              MarkerLayer(
+                markers: _generateRealisticWindArrows(
+                    widget.hurricanes, _selectedTimeIndex),
+              ),
+              // Hurricane eye markers with improved design (clickable)
+              MarkerLayer(
+                markers: widget.hurricanes.map((hurricane) {
+                  return Marker(
+                    point: LatLng(hurricane.latitude, hurricane.longitude),
+                    width: 80,
+                    height: 80,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedStorm =
+                              selectedStorm == hurricane ? null : hurricane;
+                        });
 
-                          // Animate camera to focus on the selected storm
-                          _mapController.move(
-                            LatLng(hurricane.latitude, hurricane.longitude),
-                            6.0, // Zoom level
-                          );
-                        },
-                        child: AnimatedBuilder(
-                          animation: widget.cycloneAnimationController,
-                          builder: (context, child) {
-                            // Use pulsing instead of rotation
-                            final pulseScale = 1.0 +
-                                (widget.cycloneAnimationController.value * 0.1);
+                        // Animate camera to focus on the selected storm
+                        _mapController.move(
+                          LatLng(hurricane.latitude, hurricane.longitude),
+                          6.0, // Zoom level
+                        );
+                      },
+                      child: AnimatedBuilder(
+                        animation: widget.cycloneAnimationController,
+                        builder: (context, child) {
+                          // Use pulsing instead of rotation
+                          final pulseScale = 1.0 +
+                              (widget.cycloneAnimationController.value * 0.1);
 
-                            return Transform.scale(
-                              scale: pulseScale,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  // Outer ring (wind field indicator)
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color:
-                                            AppTheme.getHurricaneCategoryColor(
-                                                    hurricane.category)
-                                                .withOpacity(0.3),
-                                        width: 2,
-                                      ),
-                                    ),
-                                  ),
-                                  // Middle ring
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
+                          return Transform.scale(
+                            scale: pulseScale,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Outer ring (wind field indicator)
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
                                       color: AppTheme.getHurricaneCategoryColor(
                                               hurricane.category)
-                                          .withOpacity(0.2),
-                                      border: Border.all(
+                                          .withOpacity(0.3),
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                // Middle ring
+                                Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppTheme.getHurricaneCategoryColor(
+                                            hurricane.category)
+                                        .withOpacity(0.2),
+                                    border: Border.all(
+                                      color: AppTheme.getHurricaneCategoryColor(
+                                              hurricane.category)
+                                          .withOpacity(0.5),
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                // Inner storm eye
+                                Container(
+                                  width: 45,
+                                  height: 45,
+                                  decoration: BoxDecoration(
+                                    gradient: RadialGradient(
+                                      colors: [
+                                        Colors.white.withOpacity(0.9),
+                                        AppTheme.getHurricaneCategoryColor(
+                                            hurricane.category),
+                                      ],
+                                    ),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: selectedStorm == hurricane
+                                          ? Colors.yellow
+                                          : Colors.white,
+                                      width: selectedStorm == hurricane ? 3 : 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
                                         color:
                                             AppTheme.getHurricaneCategoryColor(
                                                     hurricane.category)
-                                                .withOpacity(0.5),
-                                        width: 1,
+                                                .withOpacity(0.4),
+                                        blurRadius: 12,
+                                        spreadRadius: 2,
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                  // Inner storm eye
-                                  Container(
-                                    width: 45,
-                                    height: 45,
-                                    decoration: BoxDecoration(
-                                      gradient: RadialGradient(
-                                        colors: [
-                                          Colors.white.withOpacity(0.9),
-                                          AppTheme.getHurricaneCategoryColor(
-                                              hurricane.category),
-                                        ],
-                                      ),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: selectedStorm == hurricane
-                                            ? Colors.yellow
-                                            : Colors.white,
-                                        width:
-                                            selectedStorm == hurricane ? 3 : 2,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: AppTheme
-                                                  .getHurricaneCategoryColor(
-                                                      hurricane.category)
-                                              .withOpacity(0.4),
-                                          blurRadius: 12,
-                                          spreadRadius: 2,
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          hurricane.name.isNotEmpty
+                                              ? hurricane.name[0]
+                                              : '?',
+                                          style: TextStyle(
+                                            color: AppTheme
+                                                .getHurricaneCategoryColor(
+                                                    hurricane.category),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                            shadows: const [
+                                              Shadow(
+                                                color: Colors.white,
+                                                blurRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Text(
+                                          hurricane.category > 0
+                                              ? 'H${hurricane.category}'
+                                              : 'TS',
+                                          style: TextStyle(
+                                            color: AppTheme
+                                                .getHurricaneCategoryColor(
+                                                    hurricane.category),
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w600,
+                                            shadows: const [
+                                              Shadow(
+                                                color: Colors.white,
+                                                blurRadius: 1,
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ],
                                     ),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            hurricane.name.isNotEmpty
-                                                ? hurricane.name[0]
-                                                : '?',
-                                            style: TextStyle(
-                                              color: AppTheme
-                                                  .getHurricaneCategoryColor(
-                                                      hurricane.category),
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                              shadows: const [
-                                                Shadow(
-                                                  color: Colors.white,
-                                                  blurRadius: 2,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Text(
-                                            hurricane.category > 0
-                                                ? 'H${hurricane.category}'
-                                                : 'TS',
-                                            style: TextStyle(
-                                              color: AppTheme
-                                                  .getHurricaneCategoryColor(
-                                                      hurricane.category),
-                                              fontSize: 8,
-                                              fontWeight: FontWeight.w600,
-                                              shadows: const [
-                                                Shadow(
-                                                  color: Colors.white,
-                                                  blurRadius: 1,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
                                   ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  }).toList(),
+                    ),
+                  );
+                }).toList(),
+              ),
+              // Cayman Islands marker
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: const LatLng(19.3133, -81.2546),
+                    width: 40,
+                    height: 40,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.red,
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.home,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Controls overlay (toggleable)
+          if (showControls) ...[
+            // Top gradient and title
+            Positioned(
+              top: 0, // Start from the very top of the screen
+              left: 0,
+              right: 0,
+              height: MediaQuery.of(context).padding.top +
+                  80, // Extend to cover status bar + content
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.4),
+                      Colors.transparent,
+                    ],
+                  ),
                 ),
-                // Cayman Islands marker
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: const LatLng(19.3133, -81.2546),
-                      width: 40,
-                      height: 40,
-                      child: Container(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: MediaQuery.of(context).padding.top +
+                        16, // Position content below notch
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.red,
-                              blurRadius: 8,
-                              spreadRadius: 2,
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.satellite_alt,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Live Hurricane Tracking',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
                           ],
                         ),
-                        child: const Icon(
-                          Icons.home,
-                          color: Colors.white,
-                          size: 20,
-                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
 
-            // Controls overlay (toggleable)
-            if (showControls) ...[
-              // Top gradient and title
+            // Weather info (top-right)
+            if (widget.currentWeather != null)
               Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 80,
+                top: MediaQuery.of(context).padding.top +
+                    16, // Account for status bar
+                right: 16,
                 child: Container(
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.4),
-                        Colors.transparent,
-                      ],
-                    ),
+                    color: Colors.white.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 6,
+                      ),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.satellite_alt,
-                                size: 16,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Live Hurricane Tracking',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Cayman Islands',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      Text(
+                        '${widget.currentWeather!.temperature.round()}°C',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      Text(
+                        '${widget.currentWeather!.windSpeed.round()} mph',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
                 ),
               ),
 
-              // Weather info (top-right)
-              if (widget.currentWeather != null)
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 6,
-                        ),
-                      ],
+            // Bottom controls
+            Positioned(
+              bottom: MediaQuery.of(context).padding.bottom +
+                  16, // Account for home indicator
+              left: 16,
+              right: 16,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 10,
+                      spreadRadius: 2,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Forecast timeline
+                    Row(
                       children: [
+                        Icon(
+                          Icons.schedule,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
                         Text(
-                          'Cayman Islands',
+                          'Forecast:',
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                         ),
-                        Text(
-                          '${widget.currentWeather!.temperature.round()}°C',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                        Expanded(
+                          child: Slider(
+                            value: _selectedTimeIndex.toDouble(),
+                            min: 0,
+                            max: 48,
+                            divisions: 48,
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedTimeIndex = value.round();
+                              });
+                            },
+                            activeColor: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
-                        Text(
-                          '${widget.currentWeather!.windSpeed.round()} mph',
-                          style: Theme.of(context).textTheme.bodySmall,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '+${_selectedTimeIndex}h',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ),
 
-              // Bottom controls
+                    // Storm quick info
+                    if (widget.hurricanes.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              showStormInfo = !showStormInfo;
+                            });
+                          },
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.warning_amber,
+                                color: AppTheme.getHurricaneCategoryColor(
+                                    widget.hurricanes.first.category),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '${widget.hurricanes.length} Active Storm${widget.hurricanes.length > 1 ? 's' : ''} • Tap for more info',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                ),
+                              ),
+                              Icon(
+                                showStormInfo
+                                    ? Icons.keyboard_arrow_up
+                                    : Icons.keyboard_arrow_down,
+                                size: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Storm details panel (expandable)
+            if (showStormInfo && widget.hurricanes.isNotEmpty)
               Positioned(
-                bottom: 16,
+                bottom: MediaQuery.of(context).padding.bottom +
+                    120, // Account for home indicator
                 left: 16,
                 right: 16,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.3,
+                  ),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.95),
                     borderRadius: BorderRadius.circular(20),
@@ -387,250 +502,126 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Forecast timeline
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.schedule,
-                            size: 16,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Forecast:',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                          ),
-                          Expanded(
-                            child: Slider(
-                              value: _selectedTimeIndex.toDouble(),
-                              min: 0,
-                              max: 48,
-                              divisions: 48,
-                              onChanged: (value) {
+                      Text(
+                        'Active Storms',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                      ),
+                      const SizedBox(height: 12),
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: widget.hurricanes.length,
+                          itemBuilder: (context, index) {
+                            final storm = widget.hurricanes[index];
+                            return GestureDetector(
+                              onTap: () {
+                                // Focus camera on this storm
+                                _mapController.move(
+                                  LatLng(storm.latitude, storm.longitude),
+                                  6.0,
+                                );
                                 setState(() {
-                                  _selectedTimeIndex = value.round();
+                                  selectedStorm = storm;
+                                  showStormInfo = false;
                                 });
                               },
-                              activeColor:
-                                  Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '+${_selectedTimeIndex}h',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // Storm quick info
-                      if (widget.hurricanes.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                showStormInfo = !showStormInfo;
-                              });
-                            },
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.warning_amber,
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
                                   color: AppTheme.getHurricaneCategoryColor(
-                                      widget.hurricanes.first.category),
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '${widget.hurricanes.length} Active Storm${widget.hurricanes.length > 1 ? 's' : ''} • Tap for more info',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                          storm.category)
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppTheme.getHurricaneCategoryColor(
+                                        storm.category),
+                                    width: 1,
                                   ),
                                 ),
-                                Icon(
-                                  showStormInfo
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                  size: 16,
-                                  color: Colors.grey[600],
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppTheme.getHurricaneCategoryColor(
+                                                storm.category),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        AppTheme.getHurricaneCategoryText(
+                                            storm.category),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            storm.name,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleSmall
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                          ),
+                                          Text(
+                                            'Wind: ${storm.windSpeed.round()} mph • Pressure: ${storm.pressure.round()} hPa',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 14,
+                                      color: AppTheme.getHurricaneCategoryColor(
+                                          storm.category),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                          ),
+                              ),
+                            );
+                          },
                         ),
+                      ),
                     ],
                   ),
                 ),
               ),
-
-              // Storm details panel (expandable)
-              if (showStormInfo && widget.hurricanes.isNotEmpty)
-                Positioned(
-                  bottom: 120,
-                  left: 16,
-                  right: 16,
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.3,
-                    ),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.95),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.15),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Active Storms',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        const SizedBox(height: 12),
-                        Flexible(
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: widget.hurricanes.length,
-                            itemBuilder: (context, index) {
-                              final storm = widget.hurricanes[index];
-                              return GestureDetector(
-                                onTap: () {
-                                  // Focus camera on this storm
-                                  _mapController.move(
-                                    LatLng(storm.latitude, storm.longitude),
-                                    6.0,
-                                  );
-                                  setState(() {
-                                    selectedStorm = storm;
-                                    showStormInfo = false;
-                                  });
-                                },
-                                child: Container(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.getHurricaneCategoryColor(
-                                            storm.category)
-                                        .withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: AppTheme.getHurricaneCategoryColor(
-                                          storm.category),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: AppTheme
-                                              .getHurricaneCategoryColor(
-                                                  storm.category),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: Text(
-                                          AppTheme.getHurricaneCategoryText(
-                                              storm.category),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              storm.name,
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .titleSmall
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                            ),
-                                            Text(
-                                              'Wind: ${storm.windSpeed.round()} mph • Pressure: ${storm.pressure.round()} hPa',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Icon(
-                                        Icons.arrow_forward_ios,
-                                        size: 14,
-                                        color:
-                                            AppTheme.getHurricaneCategoryColor(
-                                                storm.category),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-
-            // Storm info panel (when storm selected)
-            if (selectedStorm != null)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: StormInfoPanel(
-                  hurricane: selectedStorm!,
-                  onClose: () {
-                    setState(() {
-                      selectedStorm = null;
-                    });
-                  },
-                ),
-              ),
           ],
-        ),
+
+          // Storm info panel (when storm selected)
+          if (selectedStorm != null)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: StormInfoPanel(
+                hurricane: selectedStorm!,
+                onClose: () {
+                  setState(() {
+                    selectedStorm = null;
+                  });
+                },
+              ),
+            ),
+        ],
       ),
     );
   }
