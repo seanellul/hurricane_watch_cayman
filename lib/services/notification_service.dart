@@ -1,5 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tzdata;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -17,13 +19,24 @@ class NotificationService {
     if (_initialized) return;
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    const IOSInitializationSettings iosSettings = IOSInitializationSettings();
+    const DarwinInitializationSettings iosSettings =
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
 
     final InitializationSettings settings = InitializationSettings(
       android: androidSettings,
       iOS: iosSettings,
     );
     await _plugin.initialize(settings);
+    // Initialize timezone database once for accurate scheduling
+    try {
+      tzdata.initializeTimeZones();
+    } catch (_) {
+      // Safe to ignore if already initialized
+    }
     _initialized = true;
   }
 
@@ -37,11 +50,15 @@ class NotificationService {
         AndroidNotificationDetails(
       'advisories',
       'Advisories',
-      'Hurricane advisories and alerts',
+      channelDescription: 'Hurricane advisories and alerts',
       importance: Importance.max,
       priority: Priority.high,
     );
-    const IOSNotificationDetails iosDetails = IOSNotificationDetails();
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
     const NotificationDetails details =
         NotificationDetails(android: androidDetails, iOS: iosDetails);
     await _plugin.show(
@@ -53,9 +70,52 @@ class NotificationService {
   }
 
   Future<void> scheduleDailyDigest(TimeOfDay time,
-      {required String body}) async {
+      {String? body, String? title}) async {
     await init();
-    // For v8 we keep it simple on-demand; advanced scheduling requires TZ setup
-    await showAdvisory(tier: 'Daily Digest', title: 'Today', body: body);
+    tz.Location location;
+    try {
+      // Cayman follows America/Cayman (UTC-5, no DST)
+      location = tz.getLocation('America/Cayman');
+    } catch (_) {
+      location = tz.local;
+    }
+
+    final now = tz.TZDateTime.now(location);
+    var scheduled = tz.TZDateTime(
+      location,
+      now.year,
+      now.month,
+      now.day,
+      time.hour,
+      time.minute,
+    );
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+
+    const android = AndroidNotificationDetails(
+      'daily_digest',
+      'Daily Digest',
+      channelDescription: 'Once‑a‑day reminder to check today\'s outlook',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+    );
+    const ios = DarwinNotificationDetails();
+    const details = NotificationDetails(android: android, iOS: ios);
+
+    await _plugin.zonedSchedule(
+      // Stable ID for replacement
+      1001,
+      title ?? 'Daily check‑in',
+      body ?? 'Open Cayman Hurricane Watch to see today\'s outlook.',
+      scheduled,
+      details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  Future<void> cancelDailyDigest() async {
+    await _plugin.cancel(1001);
   }
 }

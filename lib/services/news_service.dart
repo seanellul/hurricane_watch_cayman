@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:http/http.dart' as http;
-import 'package:webfeed/webfeed.dart';
+import 'package:dart_rss/dart_rss.dart';
 import 'package:hurricane_watch/models/news.dart';
 
 class NewsService {
@@ -162,7 +162,7 @@ class NewsService {
         }
 
         final feed = RssFeed.parse(body);
-        final items = feed.items ?? <RssItem>[];
+        final items = feed.items;
 
         // Parse a bounded number of items concurrently to reduce latency
         final parseFutures = items.take(20).map((item) async {
@@ -197,7 +197,11 @@ class NewsService {
     final title = item.title ?? '';
     final description = item.description ?? '';
     final link = item.link ?? '';
-    final pubDate = item.pubDate;
+    final pubDate = item.pubDate is DateTime
+        ? item.pubDate as DateTime
+        : (item.pubDate != null
+            ? DateTime.tryParse(item.pubDate.toString())
+            : null);
 
     // Handle NHC advisory timestamps more accurately
     DateTime publishedAt;
@@ -228,21 +232,10 @@ class NewsService {
       }
     }
     // Try enclosure/media if present
-    try {
-      // webfeed supports enclosure
-      final enclosureUrl = item.enclosure?.url;
-      if (imageUrl == null && enclosureUrl != null) {
-        imageUrl = enclosureUrl;
-      }
-      // Some feeds use media:content
-      final media = item.media;
-      if (imageUrl == null &&
-          media != null &&
-          media.thumbnails?.isNotEmpty == true) {
-        imageUrl = media.thumbnails!.first.url;
-      }
-    } catch (_) {
-      // Ignore if structure not present
+    // Enclosure/media handling
+    final enclosureUrl = item.enclosure?.url;
+    if (imageUrl == null && enclosureUrl != null) {
+      imageUrl = enclosureUrl;
     }
 
     // For NHC Advisories, ensure we have the best graphical outlook image
