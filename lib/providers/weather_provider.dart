@@ -125,6 +125,52 @@ class WeatherProvider with ChangeNotifier {
     }).toList();
   }
 
+  /// Returns the hurricane closest to Cayman with a naive ETA (hours) and confidence.
+  /// Confidence is higher when the forecast track passes near Cayman in the next 72h.
+  ({Hurricane? storm, double distanceMiles, int etaHours, double confidence})
+      getClosestStormProximity() {
+    const caymanLat = 19.3133;
+    const caymanLng = -81.2546;
+    double bestDistance = double.infinity;
+    Hurricane? closest;
+
+    for (final h in _activeHurricanes) {
+      final d =
+          _calculateDistance(caymanLat, caymanLng, h.latitude, h.longitude);
+      if (d < bestDistance) {
+        bestDistance = d;
+        closest = h;
+      }
+    }
+
+    if (closest == null) {
+      return (storm: null, distanceMiles: 0, etaHours: 0, confidence: 0);
+    }
+
+    // Naive ETA based on current distance and wind speed proxy
+    final speedMph = (closest.windSpeed * 1.15).clamp(5.0, 40.0); // approx
+    final etaHours = (bestDistance / speedMph).round();
+
+    // Confidence heuristic: look 72h forecast for min distance to Cayman
+    double minFuture = bestDistance;
+    for (final p in closest.forecastTrack) {
+      final df =
+          _calculateDistance(caymanLat, caymanLng, p.latitude, p.longitude);
+      if (df < minFuture) minFuture = df;
+    }
+    double confidence = 0.2;
+    if (minFuture < 500) confidence = 0.5;
+    if (minFuture < 300) confidence = 0.75;
+    if (minFuture < 150) confidence = 0.9;
+
+    return (
+      storm: closest,
+      distanceMiles: bestDistance,
+      etaHours: etaHours,
+      confidence: confidence,
+    );
+  }
+
   double _calculateDistance(
       double lat1, double lng1, double lat2, double lng2) {
     const double earthRadius = 3959; // miles

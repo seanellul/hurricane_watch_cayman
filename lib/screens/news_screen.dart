@@ -15,8 +15,7 @@ class NewsScreen extends StatefulWidget {
 }
 
 class _NewsScreenState extends State<NewsScreen> {
-  String? _selectedSource; // null means All
-  bool _onlyHurricane = true;
+  String? _selectedSource; // null means All (hurricane-only content)
   @override
   void initState() {
     super.initState();
@@ -93,10 +92,8 @@ class _NewsScreenState extends State<NewsScreen> {
             );
           }
 
-          // Filter by selected source, if any
-          final allArticles = _onlyHurricane
-              ? newsProvider.getStrictHurricaneArticles()
-              : newsProvider.articles;
+          // Always use strict hurricane-only articles
+          final allArticles = newsProvider.getStrictHurricaneArticles();
           final List<NewsArticle> displayed = _selectedSource == null
               ? allArticles
               : allArticles.where((a) => a.source == _selectedSource).toList();
@@ -105,10 +102,7 @@ class _NewsScreenState extends State<NewsScreen> {
           final sources = {for (final a in allArticles) a.source}.toList()
             ..sort();
 
-          // Apply content mode toggle to get the working set
-          final filtered = displayed
-              .where((a) => !_onlyHurricane || a.isHurricaneRelated)
-              .toList();
+          final filtered = displayed;
 
           // Choose a featured article: prefer NHC Advisory, else any hurricane-related, else the newest
           NewsArticle? featured;
@@ -226,7 +220,7 @@ class _NewsScreenState extends State<NewsScreen> {
                     );
                   }),
                 const SizedBox(height: 12),
-                // Source chips
+                // Source chips (hurricane-only across all sources)
                 SizedBox(
                   height: 44,
                   child: ListView.separated(
@@ -236,7 +230,7 @@ class _NewsScreenState extends State<NewsScreen> {
                       final String? source = i == 0 ? null : sources[i - 1];
                       final bool selected = _selectedSource == source;
                       return ChoiceChip(
-                        label: Text(source ?? 'All'),
+                        label: Text(source ?? 'All Sources'),
                         selected: selected,
                         onSelected: (_) => setState(() {
                           _selectedSource = source;
@@ -248,22 +242,6 @@ class _NewsScreenState extends State<NewsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Hurricane toggle
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SegmentedButton<bool>(
-                    segments: const <ButtonSegment<bool>>[
-                      ButtonSegment<bool>(
-                          value: false, label: Text('All News')),
-                      ButtonSegment<bool>(
-                          value: true, label: Text('Hurricane Updates')),
-                    ],
-                    selected: <bool>{_onlyHurricane},
-                    onSelectionChanged: (s) => setState(() {
-                      _onlyHurricane = s.first;
-                    }),
-                  ),
-                ),
                 const SizedBox(height: 8),
                 // Rest of the list (skip featured if present)
                 ...filtered.where((a) => a != featured).map((a) => Padding(

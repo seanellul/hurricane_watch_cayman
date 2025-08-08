@@ -225,8 +225,9 @@ class StormInfoPanel extends StatelessWidget {
                         onPressed: () {
                           // TODO: Add to watch list functionality
                         },
-                        icon: const Icon(Icons.visibility),
-                        label: const Text('Watch Storm'),
+                        icon: const Icon(Icons.newspaper, color: Colors.white),
+                        label: Text('${hurricane.name} News',
+                            style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                               Theme.of(context).colorScheme.primary,

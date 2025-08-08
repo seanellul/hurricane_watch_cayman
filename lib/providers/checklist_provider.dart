@@ -23,6 +23,33 @@ class ChecklistProvider with ChangeNotifier {
   double get completionPercentage =>
       totalItemsCount > 0 ? completedItemsCount / totalItemsCount : 0.0;
 
+  // Advisory-driven dynamic prompts for actionable checklist UX
+  String advisoryLevel = 'None'; // Outlook | Watch | Warning
+
+  void updateAdvisoryLevel(String level) {
+    advisoryLevel = level;
+    notifyListeners();
+  }
+
+  List<ChecklistItem> getPriorityActions() {
+    final incompletes = getIncompleteItems();
+    if (advisoryLevel == 'Warning') {
+      return incompletes
+          .where(
+              (i) => i.category == 'Medical' || i.category == 'Communication')
+          .take(5)
+          .toList();
+    }
+    if (advisoryLevel == 'Watch') {
+      return incompletes
+          .where((i) => i.category == 'Hydration' || i.category == 'Food')
+          .take(5)
+          .toList();
+    }
+    // Outlook / None
+    return incompletes.take(3).toList();
+  }
+
   Future<void> loadEmergencyContacts() async {
     _setLoading(true);
     _clearError();

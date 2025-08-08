@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:math' as math;
+import 'package:hurricane_watch/utils/cayman_map_cache.dart';
 
 import '../models/hurricane.dart';
 import '../models/weather.dart';
@@ -65,7 +66,9 @@ class _ImmersiveLiveMapCardState extends State<ImmersiveLiveMapCard> {
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.hurricane_watch',
+                  tileProvider: CaymanCachingTileProvider(headers: {
+                    'User-Agent': 'CaymanHurricaneWatch/1.0',
+                  }),
                 ),
                 // Dynamic wind fields + cones
                 PolygonLayer(

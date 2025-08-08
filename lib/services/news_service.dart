@@ -13,6 +13,11 @@ class NewsService {
       rssUrl: 'https://www.caymancompass.com/feed/',
     ),
     NewsSource(
+      name: 'Cayman Prepared (HMCI)',
+      url: 'https://www.caymanprepared.ky',
+      rssUrl: 'https://www.caymanprepared.ky/feed/',
+    ),
+    NewsSource(
       name: 'Cayman News Service',
       url: 'https://caymannewsservice.com',
       rssUrl: 'https://caymannewsservice.com/feed/',
@@ -27,6 +32,16 @@ class NewsService {
       url: 'https://www.nhc.noaa.gov',
       rssUrl: 'https://www.nhc.noaa.gov/index-at.xml',
     ),
+    NewsSource(
+      name: 'NHC TWO (Atlantic)',
+      url: 'https://www.nhc.noaa.gov',
+      rssUrl: 'https://www.nhc.noaa.gov/xml/TWOAT.xml',
+    ),
+    NewsSource(
+      name: 'NOAA HRD Blog',
+      url: 'https://noaahrd.wordpress.com',
+      rssUrl: 'https://noaahrd.wordpress.com/feed/',
+    ),
     // Wider outlets filtered by relevance scoring
     NewsSource(
       name: 'NYT Hurricanes',
@@ -38,6 +53,38 @@ class NewsService {
       name: 'AP – Hurricanes',
       url: 'https://apnews.com',
       rssUrl: 'https://apnews.com/hub/hurricanes?output=rss',
+    ),
+    NewsSource(
+      name: 'The Guardian – Hurricanes',
+      url: 'https://www.theguardian.com',
+      rssUrl: 'https://www.theguardian.com/world/hurricanes/rss',
+    ),
+    NewsSource(
+      name: 'Miami Herald – Hurricanes',
+      url: 'https://www.miamiherald.com',
+      rssUrl: 'https://www.miamiherald.com/news/weather/hurricane/?output=rss',
+    ),
+    NewsSource(
+      name: 'CNS – Weather',
+      url: 'https://caymannewsservice.com',
+      rssUrl:
+          'https://caymannewsservice.com/category/science-nature/weather-science-nature/feed/',
+    ),
+    NewsSource(
+      name: 'Nassau Guardian – Weather',
+      url: 'https://thenassauguardian.com',
+      rssUrl: 'https://thenassauguardian.com/category/weather/feed/',
+    ),
+    // General regional outlets (strictly filtered in-app)
+    NewsSource(
+      name: 'Jamaica Gleaner',
+      url: 'https://www.jamaica-gleaner.com',
+      rssUrl: 'http://rss.jamaica-gleaner.com/rss/lead-stories',
+    ),
+    NewsSource(
+      name: 'Barbados Today',
+      url: 'https://www.barbadostoday.bb',
+      rssUrl: 'https://www.barbadostoday.bb/feed/',
     ),
     // Paused due to authentication errors
     // NewsSource(

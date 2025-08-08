@@ -5,9 +5,20 @@ import 'package:hurricane_watch/providers/news_provider.dart';
 import 'package:hurricane_watch/providers/checklist_provider.dart';
 import 'package:hurricane_watch/screens/main_screen.dart';
 import 'package:hurricane_watch/utils/theme.dart';
+import 'package:hurricane_watch/utils/cayman_map_cache.dart';
+import 'package:hurricane_watch/services/notification_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const HurricaneWatchApp());
+
+  // Run best-effort background tasks after first frame to avoid init races
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Prefetch Cayman tiles lightly (non-blocking)
+    CaymanTilePrefetch.prefetchOnce();
+    // Initialize local notifications (non-blocking)
+    NotificationService().init();
+  });
 }
 
 class HurricaneWatchApp extends StatelessWidget {

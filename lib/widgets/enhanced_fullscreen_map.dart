@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:math' as math;
+import 'package:hurricane_watch/utils/cayman_map_cache.dart';
 
 import '../models/hurricane.dart';
 import '../models/weather.dart';
@@ -10,8 +11,8 @@ import 'storm_info_panel.dart';
 
 class EnhancedFullScreenMap extends StatefulWidget {
   final List<Hurricane> hurricanes;
-  final AnimationController windAnimationController;
-  final AnimationController cycloneAnimationController;
+  final AnimationController? windAnimationController;
+  final AnimationController? cycloneAnimationController;
   final int selectedTimeIndex;
   final WeatherData? currentWeather;
   final Hurricane? focusedStorm; // Storm to focus on when opening
@@ -19,8 +20,8 @@ class EnhancedFullScreenMap extends StatefulWidget {
   const EnhancedFullScreenMap({
     super.key,
     required this.hurricanes,
-    required this.windAnimationController,
-    required this.cycloneAnimationController,
+    this.windAnimationController,
+    this.cycloneAnimationController,
     required this.selectedTimeIndex,
     this.currentWeather,
     this.focusedStorm,
@@ -30,10 +31,14 @@ class EnhancedFullScreenMap extends StatefulWidget {
   State<EnhancedFullScreenMap> createState() => _EnhancedFullScreenMapState();
 }
 
-class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap> {
+class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap>
+    with TickerProviderStateMixin {
   int _selectedTimeIndex = 0;
   Hurricane? selectedStorm;
   late MapController mapController;
+  late final AnimationController windAnimationController;
+  late final AnimationController cycloneAnimationController;
+  bool _ownsControllers = false;
 
   @override
   void initState() {
@@ -42,12 +47,37 @@ class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap> {
     selectedStorm = widget.focusedStorm;
     mapController = MapController();
 
+    // Use provided controllers or create our own
+    if (widget.windAnimationController != null &&
+        widget.cycloneAnimationController != null) {
+      windAnimationController = widget.windAnimationController!;
+      cycloneAnimationController = widget.cycloneAnimationController!;
+      _ownsControllers = false;
+    } else {
+      _ownsControllers = true;
+      windAnimationController =
+          AnimationController(vsync: this, duration: const Duration(seconds: 3))
+            ..repeat();
+      cycloneAnimationController =
+          AnimationController(vsync: this, duration: const Duration(seconds: 2))
+            ..repeat();
+    }
+
     // Navigate to focused storm if provided
     if (widget.focusedStorm != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _navigateToStorm(widget.focusedStorm!);
       });
     }
+  }
+
+  @override
+  void dispose() {
+    if (_ownsControllers) {
+      windAnimationController.dispose();
+      cycloneAnimationController.dispose();
+    }
+    super.dispose();
   }
 
   void _navigateToStorm(Hurricane storm) {
@@ -102,7 +132,9 @@ class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.hurricane_watch',
+                tileProvider: CaymanCachingTileProvider(headers: {
+                  'User-Agent': 'CaymanHurricaneWatch/1.0',
+                }),
               ),
               // Dynamic wind field visualization (asymmetric + cones)
               PolygonLayer(
@@ -115,13 +147,13 @@ class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap> {
               ),
               // Animated wind streamlines (orbiting)
               AnimatedBuilder(
-                animation: widget.windAnimationController,
+                animation: windAnimationController,
                 builder: (context, _) {
                   return MarkerLayer(
                     markers: _generateRealisticWindArrows(
                       widget.hurricanes,
                       _selectedTimeIndex,
-                      widget.windAnimationController.value,
+                      windAnimationController.value,
                     ),
                   );
                 },
@@ -151,12 +183,11 @@ class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap> {
                         _navigateToStorm(hurricane);
                       },
                       child: AnimatedBuilder(
-                        animation: widget.cycloneAnimationController,
+                        animation: cycloneAnimationController,
                         builder: (context, child) {
                           return Transform.rotate(
-                            angle: -widget.cycloneAnimationController.value *
-                                2 *
-                                math.pi,
+                            angle:
+                                -cycloneAnimationController.value * 2 * math.pi,
                             child: Container(
                               decoration: BoxDecoration(
                                 gradient: RadialGradient(
@@ -168,8 +199,7 @@ class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap> {
                                             hurricane.category)
                                         .withOpacity(0.8 +
                                             (0.2 *
-                                                widget
-                                                    .cycloneAnimationController
+                                                cycloneAnimationController
                                                     .value)),
                                   ],
                                 ),
@@ -186,17 +216,12 @@ class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap> {
                                             hurricane.category)
                                         .withOpacity(0.4 +
                                             (0.3 *
-                                                widget
-                                                    .cycloneAnimationController
+                                                cycloneAnimationController
                                                     .value)),
                                     blurRadius: 25 +
-                                        (15 *
-                                            widget.cycloneAnimationController
-                                                .value),
+                                        (15 * cycloneAnimationController.value),
                                     spreadRadius: 8 +
-                                        (8 *
-                                            widget.cycloneAnimationController
-                                                .value),
+                                        (8 * cycloneAnimationController.value),
                                   ),
                                 ],
                               ),
@@ -446,11 +471,11 @@ class _EnhancedFullScreenMapState extends State<EnhancedFullScreenMap> {
             width: 16,
             height: 16,
             child: AnimatedBuilder(
-              animation: widget.windAnimationController,
+              animation: windAnimationController,
               builder: (context, child) {
                 return Transform.rotate(
                   angle: windDirection -
-                      (widget.windAnimationController.value *
+                      (windAnimationController.value *
                           2 *
                           math.pi *
                           animationSpeed),
