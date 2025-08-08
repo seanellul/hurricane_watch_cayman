@@ -598,9 +598,9 @@ class WeatherService {
 
     for (final url in forecastLayers) {
       try {
-        final uri = Uri.parse(
-            '$url?where=1%3D1&outFields=*&outSR=4326&f=json');
-        final resp = await http.get(uri, headers: _weatherGovHeaders)
+        final uri = Uri.parse('$url?where=1%3D1&outFields=*&outSR=4326&f=json');
+        final resp = await http
+            .get(uri, headers: _weatherGovHeaders)
             .timeout(const Duration(seconds: 10));
         if (resp.statusCode != 200) continue;
         final data = json.decode(resp.body);
@@ -614,15 +614,15 @@ class WeatherService {
             final geom = f['geometry'] ?? {};
             final name = (attributes['STORMNAME'] ?? attributes['NAME'] ?? '')
                 .toString();
-            final id = (attributes['STORMID'] ?? attributes['ID'] ?? '')
-                .toString();
+            final id =
+                (attributes['STORMID'] ?? attributes['ID'] ?? '').toString();
             final lat = (geom['y'] ?? attributes['LAT'] ?? 0.0).toDouble();
             final lon = (geom['x'] ?? attributes['LON'] ?? 0.0).toDouble();
             final dtg = attributes['DTG'] ?? attributes['ADVDATE'];
             final wind = (attributes['MAXWIND'] ?? attributes['INTENSITY'] ?? 0)
                 .toDouble();
-            final cat = (attributes['SS'] ?? attributes['CATEGORY'] ?? 0)
-                .toInt();
+            final cat =
+                (attributes['SS'] ?? attributes['CATEGORY'] ?? 0).toInt();
 
             DateTime ts = DateTime.now().toUtc();
             if (dtg is int) {
@@ -653,8 +653,8 @@ class WeatherService {
                 (p.latitude == fp.latitude && p.longitude == fp.longitude))) {
               storm.forecastTrack.add(fp);
               // Keep forecast points sorted by time
-              storm.forecastTrack.sort(
-                  (a, b) => a.timestamp.compareTo(b.timestamp));
+              storm.forecastTrack
+                  .sort((a, b) => a.timestamp.compareTo(b.timestamp));
             }
           } catch (_) {
             // Skip bad feature
