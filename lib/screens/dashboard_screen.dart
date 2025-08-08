@@ -7,8 +7,7 @@ import 'package:hurricane_watch/screens/quick_links_screen.dart';
 import 'package:hurricane_watch/screens/shelter_information_screen.dart';
 import 'package:hurricane_watch/screens/app_information_screen.dart';
 import 'package:hurricane_watch/screens/hurricane_info_screen.dart';
-import 'package:hurricane_watch/providers/weather_provider.dart';
-import 'package:hurricane_watch/widgets/enhanced_fullscreen_map.dart';
+// import 'package:hurricane_watch/providers/weather_provider.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -43,10 +42,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _HeadlineDigest(),
-                  const SizedBox(height: 16),
-                  _StormProximityCard(),
-                  const SizedBox(height: 16),
+                  // Digest and closest system moved to Latest News
                   _PreparednessOverview(provider: checklistProvider),
                   const SizedBox(height: 24),
                   _PriorityActions(provider: checklistProvider),
@@ -64,130 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _HeadlineDigest extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final weather = context.watch<WeatherProvider>();
-    final storms = weather.activeHurricanes;
-    final proximity = weather.getClosestStormProximity();
-    final String line1 = storms.isEmpty
-        ? 'No active systems'
-        : '${storms.length} active system${storms.length > 1 ? 's' : ''} in basin';
-    final String line2 = storms.isEmpty
-        ? 'Chance of Cayman impacts is low'
-        : 'Closest system ~${proximity.distanceMiles.round()} mi • ETA ~${proximity.etaHours}h';
-    final String line3 = storms.isEmpty
-        ? 'Stay prepared: check water and batteries'
-        : proximity.confidence >= 0.75
-            ? 'Elevated risk: review plan and supplies'
-            : 'Monitoring advisories; keep essentials topped up';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Daily Digest', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            _digestBullet(line1),
-            _digestBullet(line2),
-            _digestBullet(line3),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _digestBullet(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          const Icon(Icons.brightness_1, size: 8, color: Colors.blueGrey),
-          const SizedBox(width: 8),
-          Expanded(child: Text(text)),
-        ],
-      ),
-    );
-  }
-}
-
-class _StormProximityCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final weather = context.watch<WeatherProvider>();
-    final p = weather.getClosestStormProximity();
-    if (p.storm == null) {
-      return const SizedBox.shrink();
-    }
-    final color = p.confidence >= 0.75
-        ? Colors.red
-        : p.confidence >= 0.5
-            ? Colors.orange
-            : Colors.blueGrey;
-
-    return InkWell(
-      onTap: () {
-        final storms = weather.activeHurricanes;
-        if (storms.isEmpty) return;
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => EnhancedFullScreenMap(
-              hurricanes: storms,
-              selectedTimeIndex: 0,
-              focusedStorm: p.storm,
-            ),
-          ),
-        );
-      },
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 10,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Closest System: ${p.storm!.name}',
-                        style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${p.distanceMiles.round()} miles away • ETA ~${p.etaHours} hours',
-                    ),
-                    const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: p.confidence.clamp(0, 1),
-                        backgroundColor: Colors.grey[300],
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
-                        minHeight: 6,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Icon(Icons.chevron_right, color: color),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+// Digest and Proximity moved to Latest News
 
 class _PriorityActions extends StatelessWidget {
   final ChecklistProvider provider;

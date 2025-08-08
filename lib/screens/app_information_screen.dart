@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:hurricane_watch/utils/theme.dart';
 
 class AppInformationScreen extends StatelessWidget {
   const AppInformationScreen({super.key});
@@ -8,26 +9,21 @@ class AppInformationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('App Information'),
-        backgroundColor: Colors.purple.shade700,
-        foregroundColor: Colors.white,
+        title: const Text('About & Credits'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: const SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _AppHeaderCard(),
-            const SizedBox(height: 24),
-            _DeveloperCard(),
-            const SizedBox(height: 24),
-            _FeaturesList(),
-            const SizedBox(height: 24),
-            _TechnicalInfoCard(),
-            const SizedBox(height: 24),
+            _HeaderSection(),
+            SizedBox(height: 16),
+            _AboutProjectCard(),
+            _OpenSourceCard(),
+            _FeaturesCard(),
+            _DataSourcesCard(),
             _DisclaimerCard(),
-            const SizedBox(height: 24),
-            _ContactSupportCard(),
+            _SupportCard(),
           ],
         ),
       ),
@@ -35,251 +31,92 @@ class AppInformationScreen extends StatelessWidget {
   }
 }
 
-class _AppHeaderCard extends StatelessWidget {
+class _HeaderSection extends StatelessWidget {
+  const _HeaderSection();
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.purple.shade600, Colors.purple.shade400],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppTheme.navy, AppTheme.stormCyan],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(Icons.cyclone, size: 56, color: Colors.white),
           ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.cyclone,
-                size: 64,
-                color: Colors.white,
-              ),
+          const SizedBox(height: 12),
+          const Text(
+            'Cayman Hurricane Watch',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Cayman Hurricane Watch',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Version 1.0.0',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Your comprehensive hurricane preparedness companion for the Cayman Islands',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Community‑built, open‑source hurricane preparedness for the Cayman Islands.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withOpacity(0.95),
+                ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: const [
+              _PillTag(label: 'Open Source'),
+              _PillTag(label: 'No Ads'),
+              _PillTag(label: 'Community Supported'),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class _DeveloperCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.purple.shade100,
-                  child: Icon(
-                    Icons.person,
-                    size: 36,
-                    color: Colors.purple.shade700,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'About the Developer',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Sean Ellul',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: Colors.purple.shade700,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'This app was developed with a passion for community safety and hurricane preparedness in the Cayman Islands. As someone who understands the importance of being prepared for natural disasters, I created this app to help residents and visitors stay informed and ready.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _DeveloperSkillChip(
-                  icon: Icons.phone_android,
-                  label: 'Flutter Development',
-                ),
-                _DeveloperSkillChip(
-                  icon: Icons.security,
-                  label: 'Emergency Planning',
-                ),
-                _DeveloperSkillChip(
-                  icon: Icons.public,
-                  label: 'Community Focus',
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _launchEmail(),
-                    icon: const Icon(Icons.email),
-                    label: const Text('Contact Developer'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple.shade700,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _launchEmail() async {
-    final uri = Uri.parse(
-        'mailto:sean@hurricanewatch.ky?subject=Hurricane Watch App Feedback');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-}
-
-class _DeveloperSkillChip extends StatelessWidget {
-  final IconData icon;
+class _PillTag extends StatelessWidget {
   final String label;
-
-  const _DeveloperSkillChip({
-    required this.icon,
-    required this.label,
-  });
+  const _PillTag({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.purple.shade50,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.purple.shade200),
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.35)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.purple.shade700),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.purple.shade700,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: const TextStyle(
+            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
 }
 
-class _FeaturesList extends StatelessWidget {
-  final List<AppFeature> features = [
-    AppFeature(
-      icon: Icons.checklist,
-      title: 'Preparedness Checklist',
-      description:
-          'Customizable hurricane preparedness checklist based on household size and needs',
-    ),
-    AppFeature(
-      icon: Icons.contact_phone,
-      title: 'Emergency Contacts',
-      description:
-          'Quick access to all essential emergency services in the Cayman Islands',
-    ),
-    AppFeature(
-      icon: Icons.cloud,
-      title: 'Live Weather Map',
-      description:
-          'Real-time hurricane tracking with detailed meteorological information',
-    ),
-    AppFeature(
-      icon: Icons.home,
-      title: 'Shelter Information',
-      description:
-          'Comprehensive details about hurricane shelters including pet-friendly options',
-    ),
-    AppFeature(
-      icon: Icons.link,
-      title: 'Quick Links',
-      description:
-          'Fast access to government websites and preparedness resources',
-    ),
-    AppFeature(
-      icon: Icons.article,
-      title: 'News & Updates',
-      description:
-          'Latest hurricane-related news and official government announcements',
-    ),
-    AppFeature(
-      icon: Icons.cyclone,
-      title: 'Hurricane Education',
-      description:
-          'Learn about hurricane formation and the impact of Saharan dust on Caribbean weather',
-    ),
-  ];
+class _AboutProjectCard extends StatelessWidget {
+  const _AboutProjectCard();
 
   @override
   Widget build(BuildContext context) {
@@ -290,13 +127,22 @@ class _FeaturesList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'App Features',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              'About this project',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 16),
-            ...features.map((feature) => _FeatureItem(feature: feature)),
+            const SizedBox(height: 8),
+            Text(
+              'Cayman Hurricane Watch began as a simple tool for family and friends to receive timely regional weather updates. It\'s a community effort — built locally in the Cayman Islands — and it\'s not an official source of emergency guidance.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'We\'re not preparedness experts. The goal is to make accurate information easier to reach and to encourage good preparedness habits.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ],
         ),
       ),
@@ -304,317 +150,336 @@ class _FeaturesList extends StatelessWidget {
   }
 }
 
-class _FeatureItem extends StatelessWidget {
-  final AppFeature feature;
+class _OpenSourceCard extends StatelessWidget {
+  const _OpenSourceCard();
 
-  const _FeatureItem({required this.feature});
+  static final Uri _repoUrl =
+      Uri.parse('https://github.com/seanellul/hurricane_watch_cayman');
+  static final Uri _issuesUrl =
+      Uri.parse('https://github.com/seanellul/hurricane_watch_cayman/issues');
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.purple.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              feature.icon,
-              color: Colors.purple.shade700,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  feature.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  feature.description,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TechnicalInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Technical Information',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            _TechnicalInfoRow(
-              icon: Icons.phone_android,
-              label: 'Framework',
-              value: 'Flutter',
-            ),
-            _TechnicalInfoRow(
-              icon: Icons.code,
-              label: 'Language',
-              value: 'Dart',
-            ),
-            _TechnicalInfoRow(
-              icon: Icons.update,
-              label: 'Last Updated',
-              value: 'December 2024',
-            ),
-            _TechnicalInfoRow(
-              icon: Icons.security,
-              label: 'Data Sources',
-              value: 'NOAA, NHC, Cayman Government',
-            ),
-            _TechnicalInfoRow(
-              icon: Icons.devices,
-              label: 'Platform',
-              value: 'iOS & Android',
-            ),
-            _TechnicalInfoRow(
-              icon: Icons.storage,
-              label: 'Data Storage',
-              value: 'Local & Cloud Sync',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TechnicalInfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _TechnicalInfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: Colors.purple.shade700,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
-          ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey.shade600,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DisclaimerCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.orange.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.shade200),
-        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.warning,
-                  color: Colors.orange.shade700,
-                ),
+                const Icon(Icons.code, color: AppTheme.navy),
                 const SizedBox(width: 8),
-                Text(
-                  'Important Disclaimer',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange.shade700,
-                      ),
-                ),
+                Text('Open Source',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700)),
               ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'This app is designed to assist with hurricane preparedness and should not be your only source of emergency information. Always follow official guidance from the Cayman Islands Hazard Management Agency and other authorized sources.',
-              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'In case of immediate emergency, dial 911.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red.shade700,
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ContactSupportCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Support & Feedback',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Your feedback is valuable and helps improve this app for the entire Cayman Islands community. If you encounter any issues, have suggestions, or would like to report inaccurate information, please get in touch.',
+              'This app is open source. You can browse the code, report issues, and contribute improvements. New contributors are welcome — even small fixes help.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 16),
-            Column(
+            const SizedBox(height: 12),
+            Row(
               children: [
-                SizedBox(
-                  width: double.infinity,
+                Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _launchEmail(),
-                    icon: const Icon(Icons.email),
-                    label: const Text('Send Feedback'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600,
-                      foregroundColor: Colors.white,
-                    ),
+                    onPressed: () => _launch(_repoUrl),
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('View source on GitHub'),
                   ),
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
+                const SizedBox(width: 8),
+                Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _launchWebsite(),
-                    icon: const Icon(Icons.language),
-                    label: const Text('Visit Website'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.purple.shade700,
-                    ),
+                    onPressed: () => _launch(_issuesUrl),
+                    icon: const Icon(Icons.bug_report_outlined),
+                    label: const Text('Report an issue'),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.email, size: 16, color: Colors.grey.shade600),
-                      const SizedBox(width: 8),
-                      Text(
-                        'sean@hurricanewatch.ky',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.language,
-                          size: 16, color: Colors.grey.shade600),
-                      const SizedBox(width: 8),
-                      Text(
-                        'www.hurricanewatch.ky',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _launchEmail() async {
-    final uri = Uri.parse(
-        'mailto:sean@hurricanewatch.ky?subject=Hurricane Watch App Feedback');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
-  }
-
-  Future<void> _launchWebsite() async {
-    final uri = Uri.parse('https://www.hurricanewatch.ky');
+  static Future<void> _launch(Uri uri) async {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 }
 
-// Data model for app features
-class AppFeature {
-  final IconData icon;
+class _FeaturesCard extends StatelessWidget {
+  const _FeaturesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final List<_Feature> features = const [
+      _Feature(Icons.checklist, 'Preparedness checklist',
+          'Customizable items based on your household.'),
+      _Feature(Icons.contact_phone, 'Emergency contacts',
+          'Quick access to essential services in Cayman.'),
+      _Feature(Icons.map, 'Live map', 'Storm tracks and local context.'),
+      _Feature(Icons.home, 'Shelter information',
+          'Locations and notes including pet policies.'),
+      _Feature(Icons.link, 'Quick links',
+          'Trusted resources collected in one place.'),
+      _Feature(Icons.article, 'News & advisories',
+          'Local coverage and NHC updates.'),
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('What\'s inside',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            ...features.map((f) => _FeatureTile(feature: f)).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureTile extends StatelessWidget {
+  final _Feature feature;
+  const _FeatureTile({required this.feature});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppTheme.stormCyan.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.check, color: AppTheme.navy, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(feature.title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(feature.description,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.grey.shade700)),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}
+
+class _Feature {
+  final IconData icon; // Reserved for potential future use
   final String title;
   final String description;
+  const _Feature(this.icon, this.title, this.description);
+}
 
-  AppFeature({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
+class _DataSourcesCard extends StatelessWidget {
+  const _DataSourcesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Data sources & acknowledgements',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            _LinkTile(
+              icon: Icons.public,
+              label: 'NOAA / National Hurricane Center (NHC)',
+              url: 'https://www.nhc.noaa.gov',
+            ),
+            _LinkTile(
+              icon: Icons.gps_fixed,
+              label: 'Open-Meteo (weather data)',
+              url: 'https://open-meteo.com',
+            ),
+            _LinkTile(
+              icon: Icons.account_balance,
+              label: 'Cayman Islands Government resources',
+              url: 'https://www.gov.ky',
+            ),
+            _LinkTile(
+              icon: Icons.map,
+              label: 'OpenStreetMap contributors',
+              url: 'https://www.openstreetmap.org',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LinkTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String url;
+  const _LinkTile({required this.icon, required this.label, required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () async {
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.navy),
+            const SizedBox(width: 12),
+            Expanded(
+                child:
+                    Text(label, style: Theme.of(context).textTheme.bodyMedium)),
+            const Icon(Icons.open_in_new, size: 18, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DisclaimerCard extends StatelessWidget {
+  const _DisclaimerCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.alertOrange.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.alertOrange.withOpacity(0.35)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded,
+                    color: AppTheme.alertOrange),
+                const SizedBox(width: 8),
+                Text('Important disclaimer',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.alertOrange)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This app is for information and preparedness support only. Always follow official guidance from Hazard Management Cayman Islands and other authorized agencies.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'If you are in immediate danger or need help, dial 911.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700, color: Colors.red.shade700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SupportCard extends StatelessWidget {
+  const _SupportCard();
+
+  static final Uri _email = Uri.parse(
+      'mailto:sean@hurricanewatch.ky?subject=Hurricane%20Watch%20Feedback');
+  static final Uri _website = Uri.parse('https://www.hurricanewatch.ky');
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Support & feedback',
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(
+              'Ideas, corrections, and bug reports make this better for everyone in Cayman. Thank you for helping improve it.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _launch(_email),
+                    icon: const Icon(Icons.email_outlined),
+                    label: const Text('Email feedback'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _launch(_website),
+                    icon: const Icon(Icons.language),
+                    label: const Text('Project website'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Future<void> _launch(Uri uri) async {
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 }

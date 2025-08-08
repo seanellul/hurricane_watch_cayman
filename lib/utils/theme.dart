@@ -27,12 +27,10 @@ class AppTheme {
         secondary: stormCyan,
         tertiary: alertOrange,
         surface: white,
-        background: lightGray,
         onPrimary: white,
         onSecondary: white,
         onTertiary: white,
         onSurface: darkGray,
-        onBackground: darkGray,
       ),
 
       // App Bar Theme

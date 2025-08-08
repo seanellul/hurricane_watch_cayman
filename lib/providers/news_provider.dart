@@ -167,22 +167,20 @@ class NewsProvider with ChangeNotifier {
       final cached = _imageUrlCache[NewsService.canonicalizeUrl(a.link)];
       String? img = cached;
       img ??= await newsService.fetchOpenGraphImage(a.link);
-      if (img != null) {
-        _imageUrlCache[NewsService.canonicalizeUrl(a.link)] = img;
-        _articles[index] = NewsArticle(
-          title: a.title,
-          description: a.description,
-          link: a.link,
-          imageUrl: img,
-          publishedAt: a.publishedAt,
-          source: a.source,
-          category: a.category,
-          isHurricaneRelated: a.isHurricaneRelated,
-        );
-        notifyListeners();
-        await _saveCache();
-      }
-    } catch (_) {}
+      _imageUrlCache[NewsService.canonicalizeUrl(a.link)] = img ?? '';
+      _articles[index] = NewsArticle(
+        title: a.title,
+        description: a.description,
+        link: a.link,
+        imageUrl: img,
+        publishedAt: a.publishedAt,
+        source: a.source,
+        category: a.category,
+        isHurricaneRelated: a.isHurricaneRelated,
+      );
+      notifyListeners();
+      await _saveCache();
+        } catch (_) {}
   }
 
   List<NewsArticle> _dedupeAndMerge(

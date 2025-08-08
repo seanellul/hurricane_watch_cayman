@@ -1,5 +1,7 @@
 # This is a generated file; do not edit or check into version control.
-flutter_local_notifications=/Users/seanellul/.pub-cache/hosted/pub.dev/flutter_local_notifications-8.2.0/
+flutter_local_notifications=/Users/seanellul/.pub-cache/hosted/pub.dev/flutter_local_notifications-19.4.0/
+flutter_local_notifications_linux=/Users/seanellul/.pub-cache/hosted/pub.dev/flutter_local_notifications_linux-6.0.0/
+flutter_local_notifications_windows=/Users/seanellul/.pub-cache/hosted/pub.dev/flutter_local_notifications_windows-1.0.2/
 path_provider=/Users/seanellul/.pub-cache/hosted/pub.dev/path_provider-2.1.5/
 path_provider_android=/Users/seanellul/.pub-cache/hosted/pub.dev/path_provider_android-2.2.17/
 path_provider_foundation=/Users/seanellul/.pub-cache/hosted/pub.dev/path_provider_foundation-2.4.1/

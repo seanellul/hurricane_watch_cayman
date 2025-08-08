@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:http/http.dart' as http;
-import 'package:webfeed/webfeed.dart';
+import 'package:dart_rss/dart_rss.dart';
 import 'package:hurricane_watch/models/news.dart';
 
 class NewsService {
@@ -162,7 +162,7 @@ class NewsService {
         }
 
         final feed = RssFeed.parse(body);
-        final items = feed.items ?? <RssItem>[];
+        final items = feed.items;
 
         // Parse a bounded number of items concurrently to reduce latency
         final parseFutures = items.take(20).map((item) async {
@@ -197,7 +197,11 @@ class NewsService {
     final title = item.title ?? '';
     final description = item.description ?? '';
     final link = item.link ?? '';
-    final pubDate = item.pubDate;
+    final pubDate = item.pubDate is DateTime
+        ? item.pubDate as DateTime
+        : (item.pubDate != null
+            ? DateTime.tryParse(item.pubDate.toString())
+            : null);
 
     // Handle NHC advisory timestamps more accurately
     DateTime publishedAt;
@@ -208,11 +212,11 @@ class NewsService {
       if (extractedDate != null) {
         publishedAt = extractedDate;
         print(
-            '📅 Extracted NHC date: $extractedDate for: ${title.length > 50 ? title.substring(0, 50) + '...' : title}');
+            '📅 Extracted NHC date: $extractedDate for: ${title.length > 50 ? '${title.substring(0, 50)}...' : title}');
       } else {
         publishedAt = pubDate ?? DateTime.now();
         print(
-            '⚠️ Could not extract NHC date, using pubDate: $pubDate for: ${title.length > 50 ? title.substring(0, 50) + '...' : title}');
+            '⚠️ Could not extract NHC date, using pubDate: $pubDate for: ${title.length > 50 ? '${title.substring(0, 50)}...' : title}');
       }
     } else {
       publishedAt = pubDate ?? DateTime.now();
@@ -228,21 +232,10 @@ class NewsService {
       }
     }
     // Try enclosure/media if present
-    try {
-      // webfeed supports enclosure
-      final enclosureUrl = item.enclosure?.url;
-      if (imageUrl == null && enclosureUrl != null) {
-        imageUrl = enclosureUrl;
-      }
-      // Some feeds use media:content
-      final media = item.media;
-      if (imageUrl == null &&
-          media != null &&
-          media.thumbnails?.isNotEmpty == true) {
-        imageUrl = media.thumbnails!.first.url;
-      }
-    } catch (_) {
-      // Ignore if structure not present
+    // Enclosure/media handling
+    final enclosureUrl = item.enclosure?.url;
+    if (imageUrl == null && enclosureUrl != null) {
+      imageUrl = enclosureUrl;
     }
 
     // For NHC Advisories, ensure we have the best graphical outlook image
@@ -300,7 +293,9 @@ class NewsService {
     if (lower.contains('weather') ||
         lower.contains('storm') ||
         lower.contains('hurricane') ||
-        lower.contains('tropical')) return 'Weather';
+        lower.contains('tropical')) {
+      return 'Weather';
+    }
     return null;
   }
 
@@ -426,7 +421,9 @@ class NewsService {
     if (strong.any(text.contains)) return true;
     if (RegExp(r'(?<!brain)storm').hasMatch(text) &&
         RegExp(r'watch|warning|surge|advisory|forecast|winds|gusts|landfall|cone')
-            .hasMatch(text)) return true;
+            .hasMatch(text)) {
+      return true;
+    }
     if (text.contains('tropical') &&
         RegExp(r'outlook|wave|disturbance|depression|invest').hasMatch(text)) {
       return true;
@@ -464,7 +461,7 @@ class NewsService {
   DateTime? _extractNHCDate(String title, String description) {
     final text = '$title $description';
     print(
-        '🔍 Trying to extract date from: ${text.length > 100 ? text.substring(0, 100) + '...' : text}');
+        '🔍 Trying to extract date from: ${text.length > 100 ? '${text.substring(0, 100)}...' : text}');
 
     // Pattern 1: "Thu, 07 Aug 2025 14:49:41 GMT" or "Thu Aug 07 2025 14:49:41 GMT"
     final fullDatePattern = RegExp(
@@ -546,7 +543,7 @@ class NewsService {
         final utcDateTime = localDateTime.add(Duration(hours: utcOffset));
 
         print(
-            '✅ Parsed time-first date: $utcDateTime UTC (was ${timeStr} $ampm $timezone -> ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} + $utcOffset hrs)');
+            '✅ Parsed time-first date: $utcDateTime UTC (was $timeStr $ampm $timezone -> ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} + $utcOffset hrs)');
         return utcDateTime;
       } catch (e) {
         print('❌ Error parsing time-first NHC date: $e');
@@ -615,7 +612,7 @@ class NewsService {
         }
 
         final parsed = DateTime.utc(year, month, day, hour, minute);
-        print('✅ Parsed UTC time-first date: $parsed (was ${timeStr} UTC)');
+        print('✅ Parsed UTC time-first date: $parsed (was $timeStr UTC)');
         return parsed;
       } catch (e) {
         print('❌ Error parsing UTC time-first NHC date: $e');
