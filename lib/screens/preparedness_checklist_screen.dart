@@ -897,8 +897,9 @@ class _AddChecklistItemDialogState extends State<AddChecklistItemDialog> {
                         keyboardType: TextInputType.number,
                         validator: (value) {
                           if (value?.isEmpty == true) return 'Required';
-                          if (int.tryParse(value!) == null)
+                          if (int.tryParse(value!) == null) {
                             return 'Invalid number';
+                          }
                           return null;
                         },
                       ),

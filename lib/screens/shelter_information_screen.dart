@@ -451,7 +451,7 @@ class _ShelterCard extends StatelessWidget {
               ],
             ),
           ),
-          ButtonBar(
+          OverflowBar(
             children: [
               TextButton.icon(
                 onPressed: () => _makePhoneCall(shelter.contactPhone),

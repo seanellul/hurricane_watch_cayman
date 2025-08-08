@@ -208,11 +208,11 @@ class NewsService {
       if (extractedDate != null) {
         publishedAt = extractedDate;
         print(
-            '📅 Extracted NHC date: $extractedDate for: ${title.length > 50 ? title.substring(0, 50) + '...' : title}');
+            '📅 Extracted NHC date: $extractedDate for: ${title.length > 50 ? '${title.substring(0, 50)}...' : title}');
       } else {
         publishedAt = pubDate ?? DateTime.now();
         print(
-            '⚠️ Could not extract NHC date, using pubDate: $pubDate for: ${title.length > 50 ? title.substring(0, 50) + '...' : title}');
+            '⚠️ Could not extract NHC date, using pubDate: $pubDate for: ${title.length > 50 ? '${title.substring(0, 50)}...' : title}');
       }
     } else {
       publishedAt = pubDate ?? DateTime.now();
@@ -300,7 +300,9 @@ class NewsService {
     if (lower.contains('weather') ||
         lower.contains('storm') ||
         lower.contains('hurricane') ||
-        lower.contains('tropical')) return 'Weather';
+        lower.contains('tropical')) {
+      return 'Weather';
+    }
     return null;
   }
 
@@ -426,7 +428,9 @@ class NewsService {
     if (strong.any(text.contains)) return true;
     if (RegExp(r'(?<!brain)storm').hasMatch(text) &&
         RegExp(r'watch|warning|surge|advisory|forecast|winds|gusts|landfall|cone')
-            .hasMatch(text)) return true;
+            .hasMatch(text)) {
+      return true;
+    }
     if (text.contains('tropical') &&
         RegExp(r'outlook|wave|disturbance|depression|invest').hasMatch(text)) {
       return true;
@@ -464,7 +468,7 @@ class NewsService {
   DateTime? _extractNHCDate(String title, String description) {
     final text = '$title $description';
     print(
-        '🔍 Trying to extract date from: ${text.length > 100 ? text.substring(0, 100) + '...' : text}');
+        '🔍 Trying to extract date from: ${text.length > 100 ? '${text.substring(0, 100)}...' : text}');
 
     // Pattern 1: "Thu, 07 Aug 2025 14:49:41 GMT" or "Thu Aug 07 2025 14:49:41 GMT"
     final fullDatePattern = RegExp(
@@ -546,7 +550,7 @@ class NewsService {
         final utcDateTime = localDateTime.add(Duration(hours: utcOffset));
 
         print(
-            '✅ Parsed time-first date: $utcDateTime UTC (was ${timeStr} $ampm $timezone -> ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} + $utcOffset hrs)');
+            '✅ Parsed time-first date: $utcDateTime UTC (was $timeStr $ampm $timezone -> ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')} + $utcOffset hrs)');
         return utcDateTime;
       } catch (e) {
         print('❌ Error parsing time-first NHC date: $e');
@@ -615,7 +619,7 @@ class NewsService {
         }
 
         final parsed = DateTime.utc(year, month, day, hour, minute);
-        print('✅ Parsed UTC time-first date: $parsed (was ${timeStr} UTC)');
+        print('✅ Parsed UTC time-first date: $parsed (was $timeStr UTC)');
         return parsed;
       } catch (e) {
         print('❌ Error parsing UTC time-first NHC date: $e');
