@@ -4,23 +4,50 @@ import 'package:webfeed/webfeed.dart';
 import 'package:hurricane_watch/models/news.dart';
 
 class NewsService {
+  NewsService() : _client = http.Client();
+
   static final List<NewsSource> _sources = [
     NewsSource(
       name: 'Cayman Compass',
       url: 'https://www.caymancompass.com',
       rssUrl: 'https://www.caymancompass.com/feed/',
     ),
-    // NewsSource(
-    //   name: 'Loop Cayman',
-    //   url: 'https://www.loopcayman.com',
-    //   rssUrl: 'https://www.loopcayman.com/feed/',
-    // ),
+    NewsSource(
+      name: 'Cayman News Service',
+      url: 'https://caymannewsservice.com',
+      rssUrl: 'https://caymannewsservice.com/feed/',
+    ),
+    NewsSource(
+      name: 'Loop Cayman',
+      url: 'https://cayman.loopnews.com',
+      rssUrl: 'https://cayman.loopnews.com/feed/',
+    ),
     NewsSource(
       name: 'NHC Advisories',
       url: 'https://www.nhc.noaa.gov',
       rssUrl: 'https://www.nhc.noaa.gov/index-at.xml',
     ),
+    // Wider outlets filtered by relevance scoring
+    NewsSource(
+      name: 'NYT Hurricanes',
+      url: 'https://www.nytimes.com/section/us',
+      rssUrl:
+          'https://rss.nytimes.com/services/xml/rss/nyt/HurricanesCyclonesandTyphoons.xml',
+    ),
+    NewsSource(
+      name: 'AP – Hurricanes',
+      url: 'https://apnews.com',
+      rssUrl: 'https://apnews.com/hub/hurricanes?output=rss',
+    ),
+    // Paused due to authentication errors
+    // NewsSource(
+    //   name: 'Reuters – Weather',
+    //   url: 'https://www.reuters.com',
+    //   rssUrl: 'https://www.reuters.com/markets/weather/rss',
+    // ),
   ];
+
+  final http.Client _client;
 
   Future<List<NewsArticle>> getHurricaneNews() async {
     // Fetch from all sources concurrently with individual timeouts
@@ -42,31 +69,66 @@ class NewsService {
     final hurricaneArticles = allArticles
         .where((article) => article.isHurricaneRelated)
         .toList()
-      ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
+      ..sort((a, b) {
+        // Prioritize by relevance to Cayman/Caribbean/Atlantic, then by recency
+        final scoreDiff = _scoreArticleRelevance(b) - _scoreArticleRelevance(a);
+        if (scoreDiff != 0) return scoreDiff;
+        return b.publishedAt.compareTo(a.publishedAt);
+      });
 
     return hurricaneArticles;
+  }
+
+  // Returns a normalized URL suitable for de-duplication
+  static String canonicalizeUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      // Remove fragments and query for stable identity
+      return '${uri.scheme}://${uri.host}${uri.path}';
+    } catch (_) {
+      return url;
+    }
   }
 
   Future<List<NewsArticle>> _fetchRssFeed(NewsSource source) async {
     try {
       print('🔄 Fetching RSS feed from ${source.name}...');
 
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse(source.rssUrl),
         headers: {'User-Agent': 'CaymanHurricaneWatch/1.0'},
       ).timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 4),
         onTimeout: () {
           print('⏰ Timeout fetching RSS feed from ${source.name}');
-          throw TimeoutException('Request timeout', const Duration(seconds: 5));
+          throw TimeoutException('Request timeout', const Duration(seconds: 4));
         },
       );
 
       if (response.statusCode == 200) {
-        final feed = RssFeed.parse(response.body);
-        final articles =
-            feed.items?.map((item) => _parseRssItem(item, source)).toList() ??
-                [];
+        // Some endpoints return HTML or JSON; ensure we only parse probable RSS/Atom
+        final body = response.body;
+        final looksLikeXml = body.contains('<rss') || body.contains('<feed');
+        if (!looksLikeXml) {
+          print('⚠️ ${source.name}: Response not RSS/Atom, skipping');
+          return [];
+        }
+
+        final feed = RssFeed.parse(body);
+        final items = feed.items ?? <RssItem>[];
+
+        // Parse a bounded number of items concurrently to reduce latency
+        final parseFutures = items.take(20).map((item) async {
+          try {
+            return await _parseRssItemAsync(item, source);
+          } catch (_) {
+            return null;
+          }
+        }).toList();
+
+        final parsed = await Future.wait(parseFutures, eagerError: false);
+        final List<NewsArticle> articles =
+            parsed.whereType<NewsArticle>().toList();
 
         print('✅ ${source.name}: Found ${articles.length} articles');
         return articles;
@@ -83,7 +145,8 @@ class NewsService {
     }
   }
 
-  NewsArticle _parseRssItem(RssItem item, NewsSource source) {
+  Future<NewsArticle> _parseRssItemAsync(
+      RssItem item, NewsSource source) async {
     final title = item.title ?? '';
     final description = item.description ?? '';
     final link = item.link ?? '';
@@ -108,7 +171,7 @@ class NewsService {
       publishedAt = pubDate ?? DateTime.now();
     }
 
-    // Extract image URL from description if available
+    // Extract image URL from multiple possible locations
     String? imageUrl;
     if (description.contains('<img')) {
       final imgMatch =
@@ -116,6 +179,30 @@ class NewsService {
       if (imgMatch != null) {
         imageUrl = imgMatch.group(1);
       }
+    }
+    // Try enclosure/media if present
+    try {
+      // webfeed supports enclosure
+      final enclosureUrl = item.enclosure?.url;
+      if (imageUrl == null && enclosureUrl != null) {
+        imageUrl = enclosureUrl;
+      }
+      // Some feeds use media:content
+      final media = item.media;
+      if (imageUrl == null &&
+          media != null &&
+          media.thumbnails?.isNotEmpty == true) {
+        imageUrl = media.thumbnails!.first.url;
+      }
+    } catch (_) {
+      // Ignore if structure not present
+    }
+
+    // For NHC Advisories, ensure we have the best graphical outlook image
+    if (source.name == 'NHC Advisories' && imageUrl == null) {
+      // Avoid slow per-item page fetches; rely on description or safe default
+      imageUrl = _extractNHCImageUrl(description) ??
+          'https://www.nhc.noaa.gov/xgtwo/two_atl_7d0.png';
     }
 
     // Determine if article is hurricane-related
@@ -128,9 +215,77 @@ class NewsService {
       imageUrl: imageUrl,
       publishedAt: publishedAt,
       source: source.name,
-      category: _extractCategory(item),
+      category:
+          _extractCategory(item) ?? _inferCategoryFromTitle(title, source),
       isHurricaneRelated: isHurricaneRelated,
     );
+  }
+
+  // Removed old sync parser (now using async parser everywhere)
+
+  String? _extractNHCImageUrl(String description) {
+    // Look for direct image links inside the RSS description
+    final imgMatch = RegExp(
+      r'https?://www\.nhc\.noaa\.gov[^"\s>]+\.(?:png|jpg)',
+      caseSensitive: false,
+    ).firstMatch(description);
+    if (imgMatch != null) {
+      return imgMatch.group(0);
+    }
+    return null;
+  }
+
+  // Removed expensive NHC page-scrape in favor of fast defaults
+
+  String? _inferCategoryFromTitle(String title, NewsSource source) {
+    final lower = title.toLowerCase();
+    if (source.name == 'NHC Advisories') {
+      if (lower.contains('public advisory')) return 'Advisory';
+      if (lower.contains('forecast discussion')) return 'Forecast';
+      if (lower.contains('forecast advisory')) return 'Forecast';
+      if (lower.contains('wind speed probabilities')) return 'Probabilities';
+      if (lower.contains('outlook')) return 'Outlook';
+      if (lower.contains('update')) return 'Update';
+    }
+    if (lower.contains('press release')) return 'Press Releases';
+    if (lower.contains('business')) return 'Business';
+    if (lower.contains('education')) return 'Education';
+    if (lower.contains('weather') ||
+        lower.contains('storm') ||
+        lower.contains('hurricane') ||
+        lower.contains('tropical')) return 'Weather';
+    return null;
+  }
+
+  Future<String?> fetchOpenGraphImage(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      final resp = await _client.get(uri, headers: {
+        'User-Agent': 'CaymanHurricaneWatch/1.0'
+      }).timeout(const Duration(seconds: 4));
+      if (resp.statusCode != 200) return null;
+      final html = resp.body;
+      // Look for og:image or twitter:image
+      final ogMatch = RegExp(
+              r'''<meta[^>]+property=['"]og:image['"][^>]+content=['"]([^'"]+)['"]''',
+              caseSensitive: false)
+          .firstMatch(html);
+      final twMatch = RegExp(
+              r'''<meta[^>]+name=['"]twitter:image['"][^>]+content=['"]([^'"]+)['"]''',
+              caseSensitive: false)
+          .firstMatch(html);
+      String? img = ogMatch?.group(1) ?? twMatch?.group(1);
+      if (img == null || img.isEmpty) return null;
+      // Resolve relative URLs
+      if (img.startsWith('//')) {
+        img = '${uri.scheme}:$img';
+      } else if (img.startsWith('/')) {
+        img = '${uri.scheme}://${uri.host}$img';
+      }
+      return img;
+    } catch (_) {
+      return null;
+    }
   }
 
   bool _isHurricaneRelated(String title, String description) {
@@ -142,18 +297,100 @@ class NewsService {
       'storm',
       'weather warning',
       'weather alert',
+      'advisory',
       'emergency',
       'evacuation',
       'preparation',
       'preparedness',
-      'NHC',
-      'National Hurricane Center',
+      'nhc',
+      'noaa',
+      'national hurricane center',
+      // geography terms to improve precision
+      'cayman',
+      'caribbean',
+      'atlantic',
+      'gulf of mexico',
+      'jamaica',
+      'cuba',
+      'yucatan',
+      'bahamas',
+      'florida keys',
     ];
 
     final text = '${title.toLowerCase()} ${description.toLowerCase()}';
 
     return hurricaneKeywords
         .any((keyword) => text.contains(keyword.toLowerCase()));
+  }
+
+  int _scoreArticleRelevance(NewsArticle article) {
+    final text =
+        '${article.title.toLowerCase()} ${article.description.toLowerCase()}';
+
+    int score = 0;
+    // Strong signals for Cayman
+    if (text.contains('cayman')) score += 100;
+    if (text.contains('george town')) score += 20;
+
+    // Regional signals
+    for (final keyword in [
+      'caribbean',
+      'jamaica',
+      'cuba',
+      'yucatan',
+      'bahamas',
+      'gulf of mexico',
+      'florida keys',
+      'atlantic',
+    ]) {
+      if (text.contains(keyword)) score += 10;
+    }
+
+    // Prefer trusted sources slightly
+    if (article.source == 'NHC Advisories') score += 50;
+    if (article.source.contains('Cayman')) score += 30;
+
+    // Freshness bonus (decays after 24h)
+    final hoursOld =
+        DateTime.now().toUtc().difference(article.publishedAt.toUtc()).inHours;
+    score += ((24 - hoursOld).clamp(0, 24)).toInt();
+
+    return score;
+  }
+
+  // Strict filter used externally
+  static bool isStrictArticle(NewsArticle article) {
+    return _staticIsStrict(article.title, article.description, article.source);
+  }
+
+  static bool _staticIsStrict(String title, String description, String source) {
+    if (source.toLowerCase().contains('nhc')) return true;
+    final text = '${title.toLowerCase()} ${description.toLowerCase()}';
+    const strong = [
+      'hurricane',
+      'tropical storm',
+      'tropical depression',
+      'post-tropical',
+      'cyclone',
+      'nhc',
+      'noaa',
+      'national hurricane center',
+    ];
+    if (strong.any(text.contains)) return true;
+    if (RegExp(r'(?<!brain)storm').hasMatch(text) &&
+        RegExp(r'watch|warning|surge|advisory|forecast|winds|gusts|landfall|cone')
+            .hasMatch(text)) return true;
+    if (text.contains('tropical') &&
+        RegExp(r'outlook|wave|disturbance|depression|invest').hasMatch(text)) {
+      return true;
+    }
+    if (RegExp(r'cayman|caribbean|atlantic|gulf of mexico|yucatan|bahamas|jamaica')
+            .hasMatch(text) &&
+        RegExp(r'squall|band|storm|hurricane|cyclone|tropical')
+            .hasMatch(text)) {
+      return true;
+    }
+    return false;
   }
 
   String _cleanHtml(String html) {

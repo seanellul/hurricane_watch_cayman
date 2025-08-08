@@ -7,6 +7,7 @@ import '../models/hurricane.dart';
 import '../models/weather.dart';
 import '../utils/theme.dart';
 import 'storm_info_panel.dart';
+// Fullscreen map not used here
 
 class CoreLiveMap extends StatefulWidget {
   final List<Hurricane> hurricanes;
@@ -48,12 +49,7 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
               initialZoom: 4.5,
               maxZoom: 12,
               minZoom: 2,
-              onTap: (tapPosition, point) {
-                // Toggle controls visibility on tap
-                setState(() {
-                  showControls = !showControls;
-                });
-              },
+              // Remove tap toggling to prevent overlays from disappearing during pans
             ),
             children: [
               TileLayer(
@@ -62,19 +58,53 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
               ),
               // Dynamic wind field visualization
               PolygonLayer(
-                polygons: _generateTimeBasedWindFields(
-                    widget.hurricanes, _selectedTimeIndex),
+                polygons: [
+                  ..._generateAsymmetricWindFields(
+                    widget.hurricanes,
+                    _selectedTimeIndex,
+                  ),
+                  ..._generateForecastCones(
+                    widget.hurricanes,
+                    _selectedTimeIndex,
+                  ),
+                ],
               ),
-              // Realistic wind arrows (counterclockwise)
+              // Realistic wind streamlines orbiting around storm center
+              AnimatedBuilder(
+                animation: widget.windAnimationController,
+                builder: (context, _) {
+                  return MarkerLayer(
+                    markers: _generateRealisticWindArrows(
+                      widget.hurricanes,
+                      _selectedTimeIndex,
+                      widget.windAnimationController.value,
+                    ),
+                  );
+                },
+              ),
+              // Forecast track as dashed polylines
+              PolylineLayer(
+                polylines: _generateDashedPolylines(
+                  widget.hurricanes,
+                ),
+              ),
+              // Heading arrows along the forecast path
               MarkerLayer(
-                markers: _generateRealisticWindArrows(
-                    widget.hurricanes, _selectedTimeIndex),
+                markers: _generateHeadingArrows(
+                  widget.hurricanes,
+                  _selectedTimeIndex,
+                ),
               ),
               // Hurricane eye markers with improved design (clickable)
               MarkerLayer(
                 markers: widget.hurricanes.map((hurricane) {
+                  final forecastedCenter = _getForecastedCenter(
+                    hurricane,
+                    _selectedTimeIndex,
+                  );
                   return Marker(
-                    point: LatLng(hurricane.latitude, hurricane.longitude),
+                    point: LatLng(
+                        forecastedCenter.latitude, forecastedCenter.longitude),
                     width: 80,
                     height: 80,
                     child: GestureDetector(
@@ -86,7 +116,8 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
 
                         // Animate camera to focus on the selected storm
                         _mapController.move(
-                          LatLng(hurricane.latitude, hurricane.longitude),
+                          LatLng(forecastedCenter.latitude,
+                              forecastedCenter.longitude),
                           6.0, // Zoom level
                         );
                       },
@@ -278,7 +309,7 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
                     bottom: 16,
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -516,11 +547,15 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
                           itemCount: widget.hurricanes.length,
                           itemBuilder: (context, index) {
                             final storm = widget.hurricanes[index];
+                            final center = _getForecastedCenter(
+                              storm,
+                              _selectedTimeIndex,
+                            );
                             return GestureDetector(
                               onTap: () {
                                 // Focus camera on this storm
                                 _mapController.move(
-                                  LatLng(storm.latitude, storm.longitude),
+                                  LatLng(center.latitude, center.longitude),
                                   6.0,
                                 );
                                 setState(() {
@@ -632,7 +667,8 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
     List<Polygon> windFields = [];
 
     for (final hurricane in hurricanes) {
-      final center = LatLng(hurricane.latitude, hurricane.longitude);
+      final forecasted = _getForecastedCenter(hurricane, timeIndex);
+      final center = LatLng(forecasted.latitude, forecasted.longitude);
       final baseRadius = hurricane.windSpeed / 10;
       final timeMultiplier = 1.0 + (timeIndex / 48) * 0.5;
       final radius = baseRadius * timeMultiplier;
@@ -660,11 +696,12 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
 
   // Generate realistic wind arrows with counterclockwise motion
   List<Marker> _generateRealisticWindArrows(
-      List<Hurricane> hurricanes, int timeIndex) {
+      List<Hurricane> hurricanes, int timeIndex, double phase) {
     List<Marker> arrows = [];
 
     for (final hurricane in hurricanes) {
-      final center = LatLng(hurricane.latitude, hurricane.longitude);
+      final centerLatLng = _getForecastedCenter(hurricane, timeIndex);
+      final center = LatLng(centerLatLng.latitude, centerLatLng.longitude);
       final baseRadius = hurricane.windSpeed / 8;
       final timeMultiplier = 1.0 + (timeIndex / 48) * 0.5;
       final radius = baseRadius * timeMultiplier;
@@ -678,13 +715,16 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
         for (int j = 0; j < numArrowsInRing; j++) {
           final baseAngle = (j / numArrowsInRing) * 2 * math.pi;
           final spiralOffset = (ring - 1) * (math.pi / 8);
-          final angle = baseAngle + spiralOffset;
+          // Animate particle position around center (counterclockwise)
+          final angularSpeed = (0.5 + ring * 0.25); // outer rings move faster
+          final animatedAngle =
+              baseAngle + spiralOffset - phase * 2 * math.pi * angularSpeed;
 
-          final lat = center.latitude + ringDistance * math.cos(angle);
-          final lng = center.longitude + ringDistance * math.sin(angle);
+          final lat = center.latitude + ringDistance * math.cos(animatedAngle);
+          final lng = center.longitude + ringDistance * math.sin(animatedAngle);
 
           // Wind direction: tangential (counterclockwise)
-          final windDirection = angle + (math.pi / 2);
+          final windDirection = animatedAngle + (math.pi / 2);
 
           arrows.add(Marker(
             point: LatLng(lat, lng),
@@ -702,7 +742,7 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
                             math.sin(widget.windAnimationController.value *
                                     2 *
                                     math.pi +
-                                angle)));
+                                animatedAngle)));
 
                 // Calculate rotation speed based on wind speed
                 final windSpeedFactor =
@@ -764,4 +804,240 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
       return Color.lerp(Colors.red.shade400, baseColor, 0.8) ?? baseColor;
     }
   }
+
+  // Build asymmetric wind fields using NOAA radii if provided; fallback to circle
+  List<Polygon> _generateAsymmetricWindFields(
+      List<Hurricane> hurricanes, int timeIndex) {
+    final polygons = <Polygon>[];
+
+    for (final h in hurricanes) {
+      final center = _getForecastedCenter(h, timeIndex);
+
+      if (h.windFields.isNotEmpty) {
+        // Interpret each wind field as a radius with slight quadrant weighting
+        for (final wf in h.windFields) {
+          // Scale with time index
+          final scale = 1.0 + (timeIndex / 48) * 0.3;
+          final base = wf.radius * 0.01 * scale; // crude degrees approximation
+
+          // Quadrant multipliers to create asymmetry (NE, SE, SW, NW)
+          final quads = [1.2, 1.0, 0.9, 1.1];
+          final points = <LatLng>[];
+          for (int i = 0; i < 72; i++) {
+            final ang = (i / 72) * 2 * math.pi;
+            final quadIndex = ((ang / (math.pi / 2)) % 4).floor();
+            final radiusDeg = base * quads[quadIndex];
+            final lat = center.latitude + radiusDeg * math.cos(ang);
+            final lng = center.longitude + radiusDeg * math.sin(ang);
+            points.add(LatLng(lat, lng));
+          }
+
+          polygons.add(
+            Polygon(
+              points: points,
+              color: AppTheme.getHurricaneCategoryColor(h.category)
+                  .withOpacity(0.08),
+              borderColor: AppTheme.getHurricaneCategoryColor(h.category)
+                  .withOpacity(0.3),
+              borderStrokeWidth: 1.5,
+            ),
+          );
+        }
+      } else {
+        // Fallback to symmetric circle using existing method
+        polygons.addAll(_generateTimeBasedWindFields([h], timeIndex));
+      }
+    }
+
+    return polygons;
+  }
+
+  // Forecast cone and uncertainty ellipse (very simplified)
+  List<Polygon> _generateForecastCones(
+      List<Hurricane> hurricanes, int timeIndex) {
+    final cones = <Polygon>[];
+    for (final h in hurricanes) {
+      if (h.forecastTrack.length < 2) continue;
+      final start = LatLng(h.latitude, h.longitude);
+      final endPoint = LatLng(
+        h.forecastTrack.last.latitude,
+        h.forecastTrack.last.longitude,
+      );
+
+      // Generate a tapered cone: two offset polylines joined
+      final points = <LatLng>[];
+      final steps = 20;
+      for (int i = 0; i <= steps; i++) {
+        final t = i / steps;
+        final lat = start.latitude + (endPoint.latitude - start.latitude) * t;
+        final lng =
+            start.longitude + (endPoint.longitude - start.longitude) * t;
+
+        // Width grows with t (uncertainty increases)
+        final width = (0.05 + 0.25 * t) * (1 + timeIndex / 96);
+        // Perpendicular offsets
+        final angle = math.atan2(endPoint.latitude - start.latitude,
+            endPoint.longitude - start.longitude);
+        final left = LatLng(
+          lat + width * math.sin(angle),
+          lng - width * math.cos(angle),
+        );
+        points.add(left);
+      }
+      for (int i = steps; i >= 0; i--) {
+        final t = i / steps;
+        final lat = start.latitude + (endPoint.latitude - start.latitude) * t;
+        final lng =
+            start.longitude + (endPoint.longitude - start.longitude) * t;
+        final width = (0.05 + 0.25 * t) * (1 + timeIndex / 96);
+        final angle = math.atan2(endPoint.latitude - start.latitude,
+            endPoint.longitude - start.longitude);
+        final right = LatLng(
+          lat - width * math.sin(angle),
+          lng + width * math.cos(angle),
+        );
+        points.add(right);
+      }
+
+      cones.add(
+        Polygon(
+          points: points,
+          color: Colors.orange.withOpacity(0.08),
+          borderColor: Colors.orange.withOpacity(0.25),
+          borderStrokeWidth: 1.0,
+        ),
+      );
+    }
+    return cones;
+  }
+
+  // Dashed polylines by splitting into short segments
+  List<Polyline> _generateDashedPolylines(List<Hurricane> hurricanes) {
+    final result = <Polyline>[];
+    for (final h in hurricanes) {
+      final track = [
+        LatLng(h.latitude, h.longitude),
+        ...h.forecastTrack.map((p) => LatLng(p.latitude, p.longitude)),
+      ];
+      if (track.length < 2) continue;
+
+      const dashLen = 0.4; // degrees length per dash (approx)
+      bool draw = true;
+      for (int i = 0; i < track.length - 1; i++) {
+        final a = track[i];
+        final b = track[i + 1];
+        final dx = b.longitude - a.longitude;
+        final dy = b.latitude - a.latitude;
+        final dist = math.sqrt(dx * dx + dy * dy);
+        if (dist == 0) continue;
+        final steps = (dist / dashLen).ceil();
+        for (int s = 0; s < steps; s++) {
+          final t1 = s / steps;
+          final t2 = ((s + 1) / steps).clamp(0.0, 1.0);
+          if (draw) {
+            result.add(
+              Polyline(
+                points: [
+                  LatLng(a.latitude + dy * t1, a.longitude + dx * t1),
+                  LatLng(a.latitude + dy * t2, a.longitude + dx * t2),
+                ],
+                color: AppTheme.getHurricaneCategoryColor(h.category)
+                    .withOpacity(0.8),
+                strokeWidth: 2,
+              ),
+            );
+          }
+          draw = !draw;
+        }
+      }
+    }
+    return result;
+  }
+
+  // Heading arrows positioned along forecast tracks
+  List<Marker> _generateHeadingArrows(
+      List<Hurricane> hurricanes, int timeIndex) {
+    final markers = <Marker>[];
+    for (final h in hurricanes) {
+      final path = [
+        LatLng(h.latitude, h.longitude),
+        ...h.forecastTrack.map((p) => LatLng(p.latitude, p.longitude)),
+      ];
+      if (path.length < 2) continue;
+
+      // Place arrows at every other segment midpoint
+      for (int i = 0; i < path.length - 1; i += 2) {
+        final a = path[i];
+        final b = path[i + 1];
+        final mid = LatLng(
+            (a.latitude + b.latitude) / 2, (a.longitude + b.longitude) / 2);
+        final angle = math.atan2(
+            b.latitude - a.latitude, b.longitude - a.longitude); // radians
+
+        markers.add(
+          Marker(
+            point: mid,
+            width: 18,
+            height: 18,
+            child: Transform.rotate(
+              angle: angle,
+              child: Icon(
+                Icons.navigation,
+                size: 18,
+                color: AppTheme.getHurricaneCategoryColor(h.category),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    return markers;
+  }
+
+  // Interpolate the storm center along its forecast track based on hour offset
+  LatLng _getForecastedCenter(Hurricane hurricane, int hourOffset) {
+    if (hurricane.forecastTrack.isEmpty || hourOffset <= 0) {
+      return LatLng(hurricane.latitude, hurricane.longitude);
+    }
+
+    final targetTime = hurricane.timestamp.add(Duration(hours: hourOffset));
+
+    // Find bounding points
+    ForecastPoint? prev;
+    ForecastPoint? next;
+
+    for (final point in hurricane.forecastTrack) {
+      if (point.timestamp.isBefore(targetTime) ||
+          point.timestamp.isAtSameMomentAs(targetTime)) {
+        prev = point;
+      }
+      if (point.timestamp.isAfter(targetTime)) {
+        next = point;
+        break;
+      }
+    }
+
+    // If before first or after last, clamp
+    prev ??= hurricane.forecastTrack.first;
+    next ??= hurricane.forecastTrack.last;
+
+    if (prev.timestamp == next.timestamp) {
+      return LatLng(prev.latitude, prev.longitude);
+    }
+
+    final total =
+        next.timestamp.difference(prev.timestamp).inSeconds.toDouble();
+    final done = targetTime
+        .difference(prev.timestamp)
+        .inSeconds
+        .toDouble()
+        .clamp(0.0, total);
+    final t = (total == 0) ? 0.0 : (done / total);
+
+    final lat = prev.latitude + (next.latitude - prev.latitude) * t;
+    final lng = prev.longitude + (next.longitude - prev.longitude) * t;
+    return LatLng(lat, lng);
+  }
+
+  // (intentionally left unused after refactor)
 }

@@ -20,3 +20,6 @@ url_launcher_linux=/Users/seanellul/.pub-cache/hosted/pub.dev/url_launcher_linux
 url_launcher_macos=/Users/seanellul/.pub-cache/hosted/pub.dev/url_launcher_macos-3.2.2/
 url_launcher_web=/Users/seanellul/.pub-cache/hosted/pub.dev/url_launcher_web-2.4.1/
 url_launcher_windows=/Users/seanellul/.pub-cache/hosted/pub.dev/url_launcher_windows-3.1.4/
+webview_flutter=/Users/seanellul/.pub-cache/hosted/pub.dev/webview_flutter-4.13.0/
+webview_flutter_android=/Users/seanellul/.pub-cache/hosted/pub.dev/webview_flutter_android-4.9.1/
+webview_flutter_wkwebview=/Users/seanellul/.pub-cache/hosted/pub.dev/webview_flutter_wkwebview-3.23.0/

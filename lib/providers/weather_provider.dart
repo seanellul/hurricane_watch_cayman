@@ -1,8 +1,10 @@
 import 'dart:math';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:hurricane_watch/models/weather.dart';
 import 'package:hurricane_watch/models/hurricane.dart';
 import 'package:hurricane_watch/services/weather_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class WeatherProvider with ChangeNotifier {
   final WeatherService _weatherService = WeatherService();
@@ -11,6 +13,10 @@ class WeatherProvider with ChangeNotifier {
   List<Hurricane> _activeHurricanes = [];
   bool _isLoading = false;
   String? _error;
+
+  static const _stormsCacheKey = 'storms_cache_v1';
+  static const _stormsTsKey = 'storms_cache_ts_v1';
+  static const _stormsTtl = Duration(minutes: 15);
 
   WeatherData? get currentWeather => _currentWeather;
   List<Hurricane> get activeHurricanes => _activeHurricanes;
@@ -37,8 +43,33 @@ class WeatherProvider with ChangeNotifier {
     _clearError();
 
     try {
+      // Try cache first
+      final prefs = await SharedPreferences.getInstance();
+      final ts = prefs.getInt(_stormsTsKey);
+      if (ts != null) {
+        final cachedAt = DateTime.fromMillisecondsSinceEpoch(ts, isUtc: true);
+        if (DateTime.now().toUtc().difference(cachedAt) <= _stormsTtl) {
+          final data = prefs.getString(_stormsCacheKey);
+          if (data != null) {
+            final List<dynamic> jsonList = json.decode(data);
+            _activeHurricanes = jsonList
+                .map((e) => Hurricane.fromJson(e as Map<String, dynamic>))
+                .toList();
+            notifyListeners();
+          }
+        }
+      }
+
       final hurricanes = await _weatherService.getActiveHurricanes();
       _activeHurricanes = hurricanes;
+      // Save cache
+      try {
+        final prefs2 = await SharedPreferences.getInstance();
+        await prefs2.setString(_stormsCacheKey,
+            json.encode(_activeHurricanes.map((e) => e.toJson()).toList()));
+        await prefs2.setInt(
+            _stormsTsKey, DateTime.now().toUtc().millisecondsSinceEpoch);
+      } catch (_) {}
       notifyListeners();
     } catch (e) {
       _setError('Failed to load hurricane data: $e');
