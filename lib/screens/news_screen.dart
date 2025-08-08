@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+// removed duplicate import
 import 'package:hurricane_watch/providers/news_provider.dart';
 import 'package:hurricane_watch/models/news.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
+import 'package:hurricane_watch/providers/weather_provider.dart';
 // import 'package:intl/intl.dart';
 
 class NewsScreen extends StatefulWidget {
@@ -127,6 +129,18 @@ class _NewsScreenState extends State<NewsScreen> {
               children: [
                 if (newsProvider.isLoading)
                   const LinearProgressIndicator(minHeight: 2),
+                // Moved from Dashboard: Daily Digest (top of Latest News)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _HeadlineDigestInline(),
+                ),
+                const SizedBox(height: 12),
+                // Moved from Dashboard: Closest System card
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _StormProximityInline(),
+                ),
+                const SizedBox(height: 12),
                 // Quick glance: horizontal latest strip
                 if (filtered.isNotEmpty)
                   SizedBox(
@@ -515,6 +529,114 @@ class FeaturedNewsCard extends StatelessWidget {
       return '${diff.inMinutes} minute${diff.inMinutes == 1 ? '' : 's'} ago';
     }
     return 'Just now';
+  }
+}
+
+// Inline widgets ported from Dashboard
+class _HeadlineDigestInline extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final weather = context.watch<WeatherProvider>();
+    final storms = weather.activeHurricanes;
+    final proximity = weather.getClosestStormProximity();
+    final String line1 = storms.isEmpty
+        ? 'No active systems'
+        : '${storms.length} active system${storms.length > 1 ? 's' : ''} in basin';
+    final String line2 = storms.isEmpty
+        ? 'Chance of Cayman impacts is low'
+        : 'Closest system ~${proximity.distanceMiles.round()} mi • ETA ~${proximity.etaHours}h';
+    final String line3 = storms.isEmpty
+        ? 'Stay prepared: check water and batteries'
+        : proximity.confidence >= 0.75
+            ? 'Elevated risk: review plan and supplies'
+            : 'Monitoring advisories; keep essentials topped up';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Daily Digest', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            _digestBullet(context, line1),
+            _digestBullet(context, line2),
+            _digestBullet(context, line3),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _digestBullet(BuildContext context, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.brightness_1, size: 8, color: Colors.blueGrey),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text)),
+        ],
+      ),
+    );
+  }
+}
+
+class _StormProximityInline extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final weather = context.watch<WeatherProvider>();
+    final p = weather.getClosestStormProximity();
+    if (p.storm == null) {
+      return const SizedBox.shrink();
+    }
+    final color = p.confidence >= 0.75
+        ? Colors.red
+        : p.confidence >= 0.5
+            ? Colors.orange
+            : Colors.blueGrey;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 10,
+              height: 60,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Closest System: ${p.storm!.name}',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${p.distanceMiles.round()} miles away • ETA ~${p.etaHours} hours',
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: p.confidence.clamp(0, 1),
+                      backgroundColor: Colors.grey[300],
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                      minHeight: 6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

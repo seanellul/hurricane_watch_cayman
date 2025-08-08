@@ -415,54 +415,77 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Forecast timeline
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.schedule,
-                          size: 16,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Forecast:',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        Expanded(
-                          child: Slider(
-                            value: _selectedTimeIndex.toDouble(),
-                            min: 0,
-                            max: 48,
-                            divisions: 48,
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedTimeIndex = value.round();
-                              });
-                            },
-                            activeColor: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
+                    // Forecast timeline (show only if any storm has forecast points)
+                    if (widget.hurricanes
+                        .any((h) => h.forecastTrack.isNotEmpty))
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 16,
                             color: Theme.of(context).colorScheme.primary,
-                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
-                            '+${_selectedTimeIndex}h',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
+                          const SizedBox(width: 8),
+                          Text(
+                            'Forecast:',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                          ),
+                          Expanded(
+                            child: Slider(
+                              value: _selectedTimeIndex.toDouble(),
+                              min: 0,
+                              max: 48,
+                              divisions: 48,
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedTimeIndex = value.round();
+                                });
+                              },
+                              activeColor:
+                                  Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '+${_selectedTimeIndex}h',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            size: 16,
+                            color: Colors.grey[500],
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'No official forecast track available',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey[700]),
+                            ),
+                          ),
+                        ],
+                      ),
 
                     // Storm quick info
                     if (widget.hurricanes.isNotEmpty)
@@ -664,7 +687,7 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
     );
   }
 
-  // Generate wind fields that change based on forecast time
+  // Generate wind fields (kept constant w.r.t. time to avoid misleading growth)
   List<Polygon> _generateTimeBasedWindFields(
       List<Hurricane> hurricanes, int timeIndex) {
     List<Polygon> windFields = [];
@@ -673,8 +696,7 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
       final forecasted = _getForecastedCenter(hurricane, timeIndex);
       final center = LatLng(forecasted.latitude, forecasted.longitude);
       final baseRadius = hurricane.windSpeed / 10;
-      final timeMultiplier = 1.0 + (timeIndex / 48) * 0.5;
-      final radius = baseRadius * timeMultiplier;
+      final radius = baseRadius; // no artificial growth over time
 
       List<LatLng> points = [];
       for (int i = 0; i < 36; i++) {
@@ -687,7 +709,7 @@ class _CoreLiveMapState extends State<CoreLiveMap> {
       windFields.add(Polygon(
         points: points,
         color: AppTheme.getHurricaneCategoryColor(hurricane.category)
-            .withOpacity(0.08 + (timeIndex / 48) * 0.05),
+            .withOpacity(0.1),
         borderColor: AppTheme.getHurricaneCategoryColor(hurricane.category)
             .withOpacity(0.3),
         borderStrokeWidth: 1.5,

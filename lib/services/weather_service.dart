@@ -616,8 +616,13 @@ class WeatherService {
                 .toString();
             final id =
                 (attributes['STORMID'] ?? attributes['ID'] ?? '').toString();
-            final lat = (geom['y'] ?? attributes['LAT'] ?? 0.0).toDouble();
-            final lon = (geom['x'] ?? attributes['LON'] ?? 0.0).toDouble();
+            final latVal = (geom['y'] ?? attributes['LAT']);
+            final lonVal = (geom['x'] ?? attributes['LON']);
+            if (latVal == null || lonVal == null) continue;
+            final double lat = (latVal as num).toDouble();
+            final double lon = (lonVal as num).toDouble();
+            // Guard against (0,0) artifacts that send everything to Gulf of Guinea
+            if (lat.abs() < 0.5 && lon.abs() < 0.5) continue;
             final dtg = attributes['DTG'] ?? attributes['ADVDATE'];
             final wind = (attributes['MAXWIND'] ?? attributes['INTENSITY'] ?? 0)
                 .toDouble();
@@ -637,6 +642,9 @@ class WeatherService {
             storm ??= byName[name.toUpperCase()];
             if (storm == null) continue;
 
+            // Forecast point must be after the storm's timestamp
+            if (!ts.isAfter(storm.timestamp.toUtc())) continue;
+
             final fp = ForecastPoint(
               timestamp: ts,
               latitude: lat,
@@ -655,6 +663,11 @@ class WeatherService {
               // Keep forecast points sorted by time
               storm.forecastTrack
                   .sort((a, b) => a.timestamp.compareTo(b.timestamp));
+              // Bound list length to last 12 points
+              if (storm.forecastTrack.length > 12) {
+                storm.forecastTrack
+                    .removeRange(0, storm.forecastTrack.length - 12);
+              }
             }
           } catch (_) {
             // Skip bad feature
