@@ -4,12 +4,12 @@ import 'package:hurricane_watch/providers/weather_provider.dart';
 import 'package:hurricane_watch/models/weather.dart';
 import 'package:hurricane_watch/models/hurricane.dart';
 import 'package:hurricane_watch/utils/theme.dart';
-import 'package:hurricane_watch/widgets/immersive_map_widget.dart';
 import 'package:hurricane_watch/widgets/enhanced_fullscreen_map.dart';
 import 'package:hurricane_watch/widgets/core_live_map.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'dart:math' as math;
+import 'package:hurricane_watch/utils/cayman_map_cache.dart';
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
@@ -22,7 +22,6 @@ class _WeatherScreenState extends State<WeatherScreen>
     with TickerProviderStateMixin {
   late AnimationController _windAnimationController;
   late AnimationController _cycloneAnimationController;
-  int _selectedTimeIndex = 0;
 
   @override
   void initState() {
@@ -54,17 +53,6 @@ class _WeatherScreenState extends State<WeatherScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Live Map'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              context.read<WeatherProvider>().refresh();
-            },
-          ),
-        ],
-      ),
       body: Consumer<WeatherProvider>(
         builder: (context, weatherProvider, child) {
           if (weatherProvider.isLoading) {
@@ -110,177 +98,36 @@ class _WeatherScreenState extends State<WeatherScreen>
             onRefresh: () async {
               await weatherProvider.refresh();
             },
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // if (weatherProvider.currentWeather != null)
-                  //   CurrentWeatherCard(
-                  //       weather: weatherProvider.currentWeather!),
-                  const SizedBox(height: 16),
-                  if (weatherProvider.activeHurricanes.isNotEmpty)
-                    CoreLiveMap(
-                      hurricanes: weatherProvider.activeHurricanes,
-                      windAnimationController: _windAnimationController,
-                      cycloneAnimationController: _cycloneAnimationController,
-                      currentWeather: weatherProvider.currentWeather,
+            child: weatherProvider.activeHurricanes.isNotEmpty
+                ? CoreLiveMap(
+                    hurricanes: weatherProvider.activeHurricanes,
+                    windAnimationController: _windAnimationController,
+                    cycloneAnimationController: _cycloneAnimationController,
+                    currentWeather: weatherProvider.currentWeather,
+                  )
+                : const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.cloud_off,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No active hurricanes',
+                          style: TextStyle(
+                            fontSize: 18,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
-                  // Hurricane list removed to focus on immersive Live Map experience
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
+                  ),
           );
         },
       ),
-    );
-  }
-}
-
-// class CurrentWeatherCard extends StatelessWidget {
-//   final WeatherData weather;
-
-//   const CurrentWeatherCard({
-//     super.key,
-//     required this.weather,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Card(
-//       child: Padding(
-//         padding: const EdgeInsets.all(16),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Text(
-//               'Current Weather - Cayman Islands',
-//               style: Theme.of(context).textTheme.titleLarge,
-//             ),
-//             const SizedBox(height: 16),
-//             Row(
-//               children: [
-//                 Expanded(
-//                   child: Column(
-//                     crossAxisAlignment: CrossAxisAlignment.start,
-//                     children: [
-//                       Text(
-//                         '${weather.temperature.round()}°C',
-//                         style: Theme.of(context).textTheme.headlineLarge,
-//                       ),
-//                       Text(
-//                         weather.description,
-//                         style: Theme.of(context).textTheme.bodyMedium,
-//                       ),
-//                       Text(
-//                         'Feels like ${weather.feelsLike.round()}°C',
-//                         style: Theme.of(context).textTheme.bodySmall,
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-//                 Column(
-//                   crossAxisAlignment: CrossAxisAlignment.end,
-//                   children: [
-//                     Icon(
-//                       _getWeatherIcon(weather.icon),
-//                       size: 48,
-//                       color: Theme.of(context).colorScheme.primary,
-//                     ),
-//                     const SizedBox(height: 8),
-//                     Text(
-//                       '${weather.humidity.round()}%',
-//                       style: Theme.of(context).textTheme.bodyMedium,
-//                     ),
-//                     Text(
-//                       'Humidity',
-//                       style: Theme.of(context).textTheme.bodySmall,
-//                     ),
-//                   ],
-//                 ),
-//               ],
-//             ),
-//             const SizedBox(height: 16),
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceAround,
-//               children: [
-//                 _WeatherDetail(
-//                   icon: Icons.air,
-//                   label: 'Wind',
-//                   value: '${weather.windSpeed.round()} km/h',
-//                 ),
-//                 _WeatherDetail(
-//                   icon: Icons.compress,
-//                   label: 'Pressure',
-//                   value: '${weather.pressure.round()} hPa',
-//                 ),
-//                 _WeatherDetail(
-//                   icon: Icons.visibility,
-//                   label: 'Visibility',
-//                   value: '${weather.visibility.round()} km',
-//                 ),
-//               ],
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   IconData _getWeatherIcon(String iconCode) {
-//     switch (iconCode) {
-//       case '01d':
-//         return Icons.wb_sunny;
-//       case '02d':
-//       case '03d':
-//         return Icons.cloud;
-//       case '04d':
-//         return Icons.cloud_queue;
-//       case '09d':
-//         return Icons.grain;
-//       case '10d':
-//         return Icons.beach_access;
-//       case '11d':
-//         return Icons.thunderstorm;
-//       case '13d':
-//         return Icons.ac_unit;
-//       case '50d':
-//         return Icons.waves;
-//       default:
-//         return Icons.wb_sunny;
-//     }
-//   }
-// }
-
-class _WeatherDetail extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _WeatherDetail({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, size: 24, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
     );
   }
 }
@@ -374,7 +221,9 @@ class WindfinderMapCard extends StatelessWidget {
                   TileLayer(
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.hurricane_watch',
+                    tileProvider: CaymanCachingTileProvider(headers: {
+                      'User-Agent': 'CaymanHurricaneWatch/1.0',
+                    }),
                   ),
                   // Wind field visualization
                   PolygonLayer(
@@ -631,7 +480,9 @@ class _LiveMapFullScreenState extends State<LiveMapFullScreen> {
             children: [
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.hurricane_watch',
+                tileProvider: CaymanCachingTileProvider(headers: {
+                  'User-Agent': 'CaymanHurricaneWatch/1.0',
+                }),
               ),
               // Wind field visualization
               PolygonLayer(

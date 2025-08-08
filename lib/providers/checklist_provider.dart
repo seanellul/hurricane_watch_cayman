@@ -23,6 +23,33 @@ class ChecklistProvider with ChangeNotifier {
   double get completionPercentage =>
       totalItemsCount > 0 ? completedItemsCount / totalItemsCount : 0.0;
 
+  // Advisory-driven dynamic prompts for actionable checklist UX
+  String advisoryLevel = 'None'; // Outlook | Watch | Warning
+
+  void updateAdvisoryLevel(String level) {
+    advisoryLevel = level;
+    notifyListeners();
+  }
+
+  List<ChecklistItem> getPriorityActions() {
+    final incompletes = getIncompleteItems();
+    if (advisoryLevel == 'Warning') {
+      return incompletes
+          .where(
+              (i) => i.category == 'Medical' || i.category == 'Communication')
+          .take(5)
+          .toList();
+    }
+    if (advisoryLevel == 'Watch') {
+      return incompletes
+          .where((i) => i.category == 'Hydration' || i.category == 'Food')
+          .take(5)
+          .toList();
+    }
+    // Outlook / None
+    return incompletes.take(3).toList();
+  }
+
   Future<void> loadEmergencyContacts() async {
     _setLoading(true);
     _clearError();
@@ -43,12 +70,36 @@ class ChecklistProvider with ChangeNotifier {
 
     try {
       _householdProfile = profile;
-      _checklistItems = _checklistService.generateChecklist(profile);
+      _checklistItems = await _checklistService.generateChecklist(profile);
       notifyListeners();
     } catch (e) {
       _setError('Failed to generate checklist: $e');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<void> addCustomChecklistItem(ChecklistItem item) async {
+    try {
+      await _checklistService.addCustomItem(item);
+      // Regenerate checklist to include the new item
+      if (_householdProfile != null) {
+        await generateChecklist(_householdProfile!);
+      }
+    } catch (e) {
+      _setError('Failed to add custom item: $e');
+    }
+  }
+
+  Future<void> removeCustomChecklistItem(String itemId) async {
+    try {
+      await _checklistService.removeCustomItem(itemId);
+      // Regenerate checklist to remove the item
+      if (_householdProfile != null) {
+        await generateChecklist(_householdProfile!);
+      }
+    } catch (e) {
+      _setError('Failed to remove custom item: $e');
     }
   }
 

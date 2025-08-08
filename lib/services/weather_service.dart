@@ -142,6 +142,17 @@ class WeatherService {
 
       final finalHurricanes = uniqueHurricanes.values.toList();
 
+      // Enrich with forecast tracks when available from ESRI layers
+      // This enables our +48h slider to move storms realistically
+      if (finalHurricanes.isNotEmpty) {
+        try {
+          await _attachEsriForecastTracks(finalHurricanes);
+        } catch (e) {
+          // Non-fatal; continue without forecast tracks
+          print('⚠️ Unable to enrich forecast tracks: $e');
+        }
+      }
+
       if (finalHurricanes.isNotEmpty) {
         print(
             '🎯 Using real API data: ${finalHurricanes.length} unique storms found');
@@ -563,6 +574,97 @@ class WeatherService {
     }
 
     return hurricanes;
+  }
+
+  // Try to load forecast positions (up to 5 days) from ESRI ancillary layers
+  // and attach them to our in-memory storms by STORMID/NAME.
+  Future<void> _attachEsriForecastTracks(List<Hurricane> storms) async {
+    // Known ESRI layers that often provide forecast points; these change
+    // occasionally, so we query them best-effort and ignore failures.
+    const forecastLayers = <String>[
+      // Forecast points with DTG and lat/lon
+      'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/Active_Hurricanes_v1/FeatureServer/2/query',
+      // Alternate layer index if schema changes
+      'https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services/Active_Hurricanes_v1/FeatureServer/3/query',
+    ];
+
+    // Build a lookup by storm id/name for quick association
+    final Map<String, Hurricane> byId = {
+      for (final s in storms) s.id: s,
+    };
+    final Map<String, Hurricane> byName = {
+      for (final s in storms) s.name.toUpperCase(): s,
+    };
+
+    for (final url in forecastLayers) {
+      try {
+        final uri = Uri.parse(
+            '$url?where=1%3D1&outFields=*&outSR=4326&f=json');
+        final resp = await http.get(uri, headers: _weatherGovHeaders)
+            .timeout(const Duration(seconds: 10));
+        if (resp.statusCode != 200) continue;
+        final data = json.decode(resp.body);
+        if (data is! Map) continue;
+        final features = data['features'] as List?;
+        if (features == null) continue;
+
+        for (final f in features) {
+          try {
+            final attributes = f['attributes'] ?? {};
+            final geom = f['geometry'] ?? {};
+            final name = (attributes['STORMNAME'] ?? attributes['NAME'] ?? '')
+                .toString();
+            final id = (attributes['STORMID'] ?? attributes['ID'] ?? '')
+                .toString();
+            final lat = (geom['y'] ?? attributes['LAT'] ?? 0.0).toDouble();
+            final lon = (geom['x'] ?? attributes['LON'] ?? 0.0).toDouble();
+            final dtg = attributes['DTG'] ?? attributes['ADVDATE'];
+            final wind = (attributes['MAXWIND'] ?? attributes['INTENSITY'] ?? 0)
+                .toDouble();
+            final cat = (attributes['SS'] ?? attributes['CATEGORY'] ?? 0)
+                .toInt();
+
+            DateTime ts = DateTime.now().toUtc();
+            if (dtg is int) {
+              ts = DateTime.fromMillisecondsSinceEpoch(dtg, isUtc: true);
+            } else if (dtg is String) {
+              try {
+                ts = DateTime.parse(dtg).toUtc();
+              } catch (_) {}
+            }
+
+            Hurricane? storm = byId[id];
+            storm ??= byName[name.toUpperCase()];
+            if (storm == null) continue;
+
+            final fp = ForecastPoint(
+              timestamp: ts,
+              latitude: lat,
+              longitude: lon,
+              windSpeed: wind,
+              pressure: 0.0,
+              category: cat,
+            );
+
+            // Append if it's in the future and not already present
+            if (!storm.forecastTrack.any((p) =>
+                (p.timestamp.toUtc().millisecondsSinceEpoch ==
+                    fp.timestamp.toUtc().millisecondsSinceEpoch) &&
+                (p.latitude == fp.latitude && p.longitude == fp.longitude))) {
+              storm.forecastTrack.add(fp);
+              // Keep forecast points sorted by time
+              storm.forecastTrack.sort(
+                  (a, b) => a.timestamp.compareTo(b.timestamp));
+            }
+          } catch (_) {
+            // Skip bad feature
+          }
+        }
+      } catch (e) {
+        // try next layer
+        continue;
+      }
+    }
   }
 
   DateTime _parseESRITimestamp(dynamic timestamp) {
